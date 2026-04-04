@@ -1,0 +1,284 @@
+'use client'
+
+export const dynamic = 'force-dynamic'
+
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { getSupabase } from '@/lib/supabase'
+
+const PLAN_LABELS = {
+  free: 'フリープラン',
+  standard: 'スタンダードプラン',
+  pro: 'プロプラン',
+}
+
+export default function DashboardPage() {
+  const router = useRouter()
+  const [keyword, setKeyword] = useState('')
+  const [jobs, setJobs] = useState([])
+  const [profile, setProfile] = useState(null)
+  const [generating, setGenerating] = useState(false)
+  const [pollingId, setPollingId] = useState(null)
+  const [authChecked, setAuthChecked] = useState(false)
+
+  useEffect(() => {
+    getSupabase().auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        router.replace('/login')
+      } else {
+        setAuthChecked(true)
+        fetchJobs()
+        fetchProfile(session.user.id)
+      }
+    })
+  }, [])
+
+  const fetchProfile = useCallback(async (userId) => {
+    const { data } = await getSupabase()
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+    if (data) setProfile(data)
+  }, [])
+
+  const fetchJobs = useCallback(async () => {
+    const { data, error } = await getSupabase()
+      .from('jobs')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (!error && data) setJobs(data)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (pollingId) clearInterval(pollingId)
+    }
+  }, [pollingId])
+
+  async function handleGenerate(e) {
+    e.preventDefault()
+    if (!keyword.trim() || generating) return
+
+    // クレジットチェック（proプランは無制限）
+    if (profile?.plan !== 'pro' && profile?.credits_remaining <= 0) {
+      alert('クレジットが不足しています。設定ページからプランをアップグレードしてください。')
+      return
+    }
+
+    setGenerating(true)
+
+    // クレジットを1消費
+    if (profile?.plan !== 'pro') {
+      const { error: creditError } = await getSupabase()
+        .from('user_profiles')
+        .update({ credits_remaining: profile.credits_remaining - 1 })
+        .eq('id', profile.id)
+      if (creditError) {
+        alert('クレジットの更新に失敗しました')
+        setGenerating(false)
+        return
+      }
+      setProfile(p => ({ ...p, credits_remaining: p.credits_remaining - 1 }))
+    }
+
+    // Insert job
+    const { data: job, error: insertError } = await getSupabase()
+      .from('jobs')
+      .insert({ main_keyword: keyword.trim(), status: 'queued' })
+      .select()
+      .single()
+
+    if (insertError || !job) {
+      alert('ジョブの作成に失敗しました: ' + (insertError?.message ?? ''))
+      // クレジットを戻す
+      if (profile?.plan !== 'pro') {
+        await getSupabase()
+          .from('user_profiles')
+          .update({ credits_remaining: profile.credits_remaining })
+          .eq('id', profile.id)
+        setProfile(p => ({ ...p, credits_remaining: p.credits_remaining + 1 }))
+      }
+      setGenerating(false)
+      return
+    }
+
+    await fetchJobs()
+    setKeyword('')
+
+    try {
+      await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: job.id, keyword: job.main_keyword }),
+      })
+    } catch {
+      // Pipeline may not be running
+    }
+
+    // Poll for completion
+    const id = setInterval(async () => {
+      const { data } = await getSupabase()
+        .from('jobs')
+        .select('status')
+        .eq('id', job.id)
+        .single()
+
+      if (data?.status === 'done' || data?.status === 'error') {
+        clearInterval(id)
+        setPollingId(null)
+        setGenerating(false)
+        fetchJobs()
+
+        // 失敗時はクレジットを戻す
+        if (data.status === 'error' && profile?.plan !== 'pro') {
+          await getSupabase()
+            .from('user_profiles')
+            .update({ credits_remaining: profile.credits_remaining })
+            .eq('id', profile.id)
+          await fetchProfile(profile.id)
+        }
+      }
+    }, 5000)
+
+    setPollingId(id)
+  }
+
+  async function handleLogout() {
+    await getSupabase().auth.signOut()
+    router.replace('/login')
+  }
+
+  function statusBadge(status) {
+    const map = {
+      queued: 'bg-yellow-100 text-yellow-800',
+      running: 'bg-blue-100 text-blue-800',
+      done: 'bg-green-100 text-green-800',
+      error: 'bg-red-100 text-red-800',
+    }
+    return map[status] ?? 'bg-gray-100 text-gray-800'
+  }
+
+  if (!authChecked) return null
+
+  const isPro = profile?.plan === 'pro'
+  const creditsLabel = isPro
+    ? '無制限'
+    : profile
+    ? `残り${profile.credits_remaining}記事`
+    : '...'
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
+        <h1 className="text-xl font-bold text-gray-800">SEO記事生成</h1>
+        <div className="flex items-center gap-6">
+          {profile && (
+            <span className="text-sm text-gray-600">
+              <span className="font-medium text-gray-800">
+                {PLAN_LABELS[profile.plan] ?? profile.plan}
+              </span>
+              {' '}｜{' '}
+              <span className={!isPro && profile.credits_remaining <= 1 ? 'text-red-600 font-medium' : ''}>
+                {creditsLabel}
+              </span>
+            </span>
+          )}
+          <Link href="/settings" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
+            設定
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            ログアウト
+          </button>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-8 py-8 flex flex-col gap-8">
+        {/* Generate form */}
+        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">記事を生成する</h2>
+          <form onSubmit={handleGenerate} className="flex gap-3">
+            <input
+              type="text"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder="メインキーワードを入力..."
+              disabled={generating}
+              className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
+            />
+            <button
+              type="submit"
+              disabled={generating || !keyword.trim() || (!isPro && profile?.credits_remaining <= 0)}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 whitespace-nowrap"
+            >
+              {generating ? '生成中...' : '記事生成'}
+            </button>
+          </form>
+          {!isPro && profile?.credits_remaining <= 0 && (
+            <p className="text-sm text-red-600 mt-3">
+              クレジットが不足しています。
+              <Link href="/settings" className="underline ml-1">プランをアップグレード</Link>
+            </p>
+          )}
+          {generating && (
+            <p className="text-sm text-blue-600 mt-3 flex items-center gap-2">
+              <span className="inline-block w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              記事を生成しています。完了まで数分かかります...
+            </p>
+          )}
+        </section>
+
+        {/* Jobs table */}
+        <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-800">生成済み記事</h2>
+          </div>
+          {jobs.length === 0 ? (
+            <p className="text-gray-400 text-sm text-center py-12">まだ記事がありません</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                <tr>
+                  <th className="px-6 py-3 text-left">キーワード</th>
+                  <th className="px-6 py-3 text-left">ステータス</th>
+                  <th className="px-6 py-3 text-left">作成日</th>
+                  <th className="px-6 py-3 text-left"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {jobs.map((job) => (
+                  <tr key={job.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 font-medium text-gray-800">{job.main_keyword}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${statusBadge(job.status)}`}>
+                        {job.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-gray-500">
+                      {new Date(job.created_at).toLocaleString('ja-JP')}
+                    </td>
+                    <td className="px-6 py-4">
+                      {job.status === 'done' && (
+                        <button
+                          onClick={() => router.push(`/article/${job.id}`)}
+                          className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                        >
+                          表示
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      </main>
+    </div>
+  )
+}
