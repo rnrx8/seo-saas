@@ -1,5 +1,10 @@
 export const dynamic = 'force-dynamic'
 
+// 疎通確認用
+export async function GET() {
+  return Response.json({ ok: true, endpoint: '/api/generate' })
+}
+
 export async function POST(request) {
   const { job_id, keyword } = await request.json()
 
