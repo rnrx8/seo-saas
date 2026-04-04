@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 export async function POST(request) {
   const { job_id, keyword } = await request.json()
 
