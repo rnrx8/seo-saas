@@ -87,13 +87,12 @@ export default function DashboardPage() {
     await fetchJobs()
     setKeyword('')
 
-    // Railway API に直接リクエスト（30分タイムアウト）
-    const pipelineUrl = process.env.NEXT_PUBLIC_PIPELINE_API_URL
+    // Next.js プロキシ経由で Railway API にリクエスト（30分タイムアウト）
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 30 * 60 * 1000)
 
     try {
-      await fetch(`${pipelineUrl}/generate`, {
+      await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ job_id: job.id, keyword: job.main_keyword }),
