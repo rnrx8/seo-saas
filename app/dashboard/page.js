@@ -21,6 +21,7 @@ export default function DashboardPage() {
   const [generating, setGenerating] = useState(false)
   const [pollingId, setPollingId] = useState(null)
   const [authChecked, setAuthChecked] = useState(false)
+  const [statusMessage, setStatusMessage] = useState(null) // { type: 'success'|'error', text: string }
 
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
@@ -63,25 +64,12 @@ export default function DashboardPage() {
 
     // クレジットチェック（proプランは無制限）
     if (profile?.plan !== 'pro' && profile?.credits_remaining <= 0) {
-      alert('クレジットが不足しています。設定ページからプランをアップグレードしてください。')
+      setStatusMessage({ type: 'error', text: 'クレジットが不足しています。設定ページからプランをアップグレードしてください。' })
       return
     }
 
     setGenerating(true)
-
-    // クレジットを1消費
-    if (profile?.plan !== 'pro') {
-      const { error: creditError } = await getSupabase()
-        .from('user_profiles')
-        .update({ credits_remaining: profile.credits_remaining - 1 })
-        .eq('id', profile.id)
-      if (creditError) {
-        alert('クレジットの更新に失敗しました')
-        setGenerating(false)
-        return
-      }
-      setProfile(p => ({ ...p, credits_remaining: p.credits_remaining - 1 }))
-    }
+    setStatusMessage(null)
 
     // Insert job
     const { data: job, error: insertError } = await getSupabase()
@@ -91,15 +79,7 @@ export default function DashboardPage() {
       .single()
 
     if (insertError || !job) {
-      alert('ジョブの作成に失敗しました: ' + (insertError?.message ?? ''))
-      // クレジットを戻す
-      if (profile?.plan !== 'pro') {
-        await getSupabase()
-          .from('user_profiles')
-          .update({ credits_remaining: profile.credits_remaining })
-          .eq('id', profile.id)
-        setProfile(p => ({ ...p, credits_remaining: p.credits_remaining + 1 }))
-      }
+      setStatusMessage({ type: 'error', text: 'ジョブの作成に失敗しました: ' + (insertError?.message ?? '') })
       setGenerating(false)
       return
     }
@@ -107,17 +87,29 @@ export default function DashboardPage() {
     await fetchJobs()
     setKeyword('')
 
+    // Railway API に直接リクエスト（30分タイムアウト）
+    const pipelineUrl = process.env.NEXT_PUBLIC_PIPELINE_API_URL
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30 * 60 * 1000)
+
     try {
-      await fetch('/api/generate', {
+      await fetch(`${pipelineUrl}/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ job_id: job.id, keyword: job.main_keyword }),
+        signal: controller.signal,
       })
-    } catch {
-      // Pipeline may not be running
+    } catch (err) {
+      clearTimeout(timeoutId)
+      if (err.name !== 'AbortError') {
+        setStatusMessage({ type: 'error', text: 'サーバーに接続できませんでした' })
+        setGenerating(false)
+        return
+      }
     }
+    clearTimeout(timeoutId)
 
-    // Poll for completion
+    // 5秒おきにステータスをポーリング
     const id = setInterval(async () => {
       const { data } = await getSupabase()
         .from('jobs')
@@ -125,20 +117,27 @@ export default function DashboardPage() {
         .eq('id', job.id)
         .single()
 
-      if (data?.status === 'done' || data?.status === 'error') {
+      if (data?.status === 'done') {
         clearInterval(id)
         setPollingId(null)
         setGenerating(false)
         fetchJobs()
 
-        // 失敗時はクレジットを戻す
-        if (data.status === 'error' && profile?.plan !== 'pro') {
+        // 完了後にクレジットを1消費
+        if (profile?.plan !== 'pro') {
           await getSupabase()
             .from('user_profiles')
-            .update({ credits_remaining: profile.credits_remaining })
+            .update({ credits_remaining: profile.credits_remaining - 1 })
             .eq('id', profile.id)
           await fetchProfile(profile.id)
         }
+        setStatusMessage({ type: 'success', text: '生成完了！' })
+      } else if (data?.status === 'failed') {
+        clearInterval(id)
+        setPollingId(null)
+        setGenerating(false)
+        fetchJobs()
+        setStatusMessage({ type: 'error', text: '生成に失敗しました' })
       }
     }, 5000)
 
@@ -152,10 +151,11 @@ export default function DashboardPage() {
 
   function statusBadge(status) {
     const map = {
-      queued: 'bg-yellow-100 text-yellow-800',
+      queued:  'bg-yellow-100 text-yellow-800',
       running: 'bg-blue-100 text-blue-800',
-      done: 'bg-green-100 text-green-800',
-      error: 'bg-red-100 text-red-800',
+      done:    'bg-green-100 text-green-800',
+      failed:  'bg-red-100 text-red-800',
+      error:   'bg-red-100 text-red-800',
     }
     return map[status] ?? 'bg-gray-100 text-gray-800'
   }
@@ -219,7 +219,7 @@ export default function DashboardPage() {
               {generating ? '生成中...' : '記事生成'}
             </button>
           </form>
-          {!isPro && profile?.credits_remaining <= 0 && (
+          {!isPro && profile?.credits_remaining <= 0 && !generating && (
             <p className="text-sm text-red-600 mt-3">
               クレジットが不足しています。
               <Link href="/settings" className="underline ml-1">プランをアップグレード</Link>
@@ -229,6 +229,11 @@ export default function DashboardPage() {
             <p className="text-sm text-blue-600 mt-3 flex items-center gap-2">
               <span className="inline-block w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
               記事を生成しています。完了まで数分かかります...
+            </p>
+          )}
+          {statusMessage && !generating && (
+            <p className={`text-sm mt-3 ${statusMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+              {statusMessage.text}
             </p>
           )}
         </section>
