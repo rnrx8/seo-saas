@@ -5,7 +5,24 @@ export const dynamic = 'force-dynamic'
 import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { getSupabase } from '@/lib/supabase'
+
+const MD_COMPONENTS = {
+  h1:     ({ children }) => <h1 className="text-2xl font-bold mt-6 mb-3">{children}</h1>,
+  h2:     ({ children }) => <h2 className="text-xl font-bold mt-5 mb-2 border-b pb-1">{children}</h2>,
+  h3:     ({ children }) => <h3 className="text-lg font-semibold mt-4 mb-2">{children}</h3>,
+  h4:     ({ children }) => <h4 className="text-base font-semibold mt-3 mb-1">{children}</h4>,
+  p:      ({ children }) => <p className="mb-3 leading-relaxed">{children}</p>,
+  ul:     ({ children }) => <ul className="list-disc list-inside mb-3 space-y-1">{children}</ul>,
+  ol:     ({ children }) => <ol className="list-decimal list-inside mb-3 space-y-1">{children}</ol>,
+  li:     ({ children }) => <li className="ml-4">{children}</li>,
+  table:  ({ children }) => <table className="w-full border-collapse mb-4">{children}</table>,
+  th:     ({ children }) => <th className="border border-gray-300 bg-gray-100 px-3 py-2 text-left text-sm font-semibold">{children}</th>,
+  td:     ({ children }) => <td className="border border-gray-300 px-3 py-2 text-sm">{children}</td>,
+  strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+  code:   ({ children }) => <code className="bg-gray-100 px-1 rounded text-sm">{children}</code>,
+}
 
 const TABS = [
   { key: 'article',       label: '記事' },
@@ -111,20 +128,20 @@ export default function ArticlePage({ params }) {
             {/* Tab content */}
             <div className="p-8">
               {activeTab === 'article' && (
-                <article className="prose prose-gray max-w-none">
-                  <ReactMarkdown>{artifacts['article'] ?? ''}</ReactMarkdown>
+                <article className="max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{artifacts['article'] ?? ''}</ReactMarkdown>
                 </article>
               )}
 
               {activeTab === 'search_intent' && (
-                <article className="prose prose-gray max-w-none">
-                  <ReactMarkdown>{artifacts['search_intent'] ?? '（データなし）'}</ReactMarkdown>
+                <article className="max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{artifacts['search_intent'] ?? '（データなし）'}</ReactMarkdown>
                 </article>
               )}
 
               {activeTab === 'outline' && (
-                <article className="prose prose-gray max-w-none">
-                  <ReactMarkdown>{artifacts['outline'] ?? '（データなし）'}</ReactMarkdown>
+                <article className="max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{artifacts['outline'] ?? '（データなし）'}</ReactMarkdown>
                 </article>
               )}
 
