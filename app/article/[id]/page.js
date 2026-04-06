@@ -28,6 +28,7 @@ const TABS = [
   { key: 'article',       label: '記事' },
   { key: 'search_intent', label: '検索意図' },
   { key: 'outline',       label: '構成案' },
+  { key: 'fact_sheet',    label: 'ファクトシート' },
   { key: 'paa_lsi',       label: 'PAA / LSI' },
   { key: 'serp',          label: '競合情報' },
 ]
@@ -55,7 +56,7 @@ export default function ArticlePage({ params }) {
       .from('artifacts')
       .select('step, content_text')
       .eq('job_id', id)
-      .in('step', ['article', 'search_intent', 'outline', 'serp'])
+      .in('step', ['article', 'search_intent', 'outline', 'fact_sheet', 'serp'])
 
     if (error || !data) {
       setError('データが見つかりませんでした')
@@ -143,6 +144,12 @@ export default function ArticlePage({ params }) {
               {activeTab === 'outline' && (
                 <article className="max-w-none">
                   <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{artifacts['outline'] ?? '（データなし）'}</ReactMarkdown>
+                </article>
+              )}
+
+              {activeTab === 'fact_sheet' && (
+                <article className="max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{artifacts['fact_sheet'] ?? 'ファクトシートがありません'}</ReactMarkdown>
                 </article>
               )}
 
