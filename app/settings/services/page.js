@@ -86,6 +86,8 @@ export default function ServicesPage() {
     const { mode, form } = modal
     if (!form.name.trim()) { setError('サービス名は必須です'); return }
     setSaving(true)
+    const supabase = getSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
     const selling_points = form.selling_points_text.split('\n').map(s => s.trim()).filter(Boolean)
     const payload = {
       name: form.name.trim(),
@@ -95,9 +97,9 @@ export default function ServicesPage() {
       selling_points,
     }
     if (mode === 'add') {
-      await getSupabase().from('services').insert(payload)
+      await supabase.from('services').insert({ ...payload, tenant_id: user.id })
     } else {
-      await getSupabase().from('services').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', form.id)
+      await supabase.from('services').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', form.id)
     }
     setSaving(false)
     setModal(null)

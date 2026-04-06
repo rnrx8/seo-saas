@@ -61,6 +61,8 @@ export default function CtasPage() {
     const { mode, form } = modal
     if (!form.name.trim()) { setError('名前は必須です'); return }
     setSaving(true)
+    const supabase = getSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
     const payload = {
       name: form.name.trim(),
       category: form.category.trim(),
@@ -69,9 +71,9 @@ export default function CtasPage() {
       url: form.url.trim(),
     }
     if (mode === 'add') {
-      await getSupabase().from('cta_blocks').insert(payload)
+      await supabase.from('cta_blocks').insert({ ...payload, tenant_id: user.id })
     } else {
-      await getSupabase().from('cta_blocks').update(payload).eq('id', form.id)
+      await supabase.from('cta_blocks').update(payload).eq('id', form.id)
     }
     setSaving(false)
     setModal(null)
