@@ -218,46 +218,99 @@ function PaaLsiView({ content }) {
   )
 }
 
+function HeadingsList({ headings, fetchStatus }) {
+  const [open, setOpen] = useState(false)
+
+  if (fetchStatus === 'failed') {
+    return <p className="text-gray-400 text-xs mt-2">見出しを取得できませんでした</p>
+  }
+  if (!headings || headings.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="mt-2">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
+      >
+        {open ? '▲ 見出しを閉じる' : `▼ 見出しを表示（${headings.length}件）`}
+      </button>
+      {open && (
+        <ul className="mt-2 flex flex-col gap-1">
+          {headings.map((h, i) => (
+            <li
+              key={i}
+              className={h.level === 'h2'
+                ? 'text-sm font-semibold text-gray-700'
+                : 'ml-4 text-sm text-gray-500'}
+            >
+              <span className="text-gray-300 mr-1">{h.level === 'h2' ? 'H2' : 'H3'}</span>
+              {h.text}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 function SerpView({ content }) {
   if (!content) return <p className="text-gray-400 text-sm">（データなし）</p>
 
-  let results = null
+  let organicResults = null
+  let headingsMap = {}
   try {
     const parsed = JSON.parse(content)
-    // SerpApi の organic_results or 配列直接に対応
-    results = Array.isArray(parsed) ? parsed : (parsed.organic_results ?? null)
+    if (Array.isArray(parsed)) {
+      organicResults = parsed
+    } else {
+      organicResults = parsed.organic_results ?? null
+      for (const h of (parsed.competitor_headings ?? [])) {
+        if (h?.url) headingsMap[h.url] = h
+      }
+    }
   } catch {
-    // JSON でなければ plain text フォールバック
     return <pre className="text-sm text-gray-700 whitespace-pre-wrap">{content}</pre>
   }
 
-  if (!results) {
+  if (!organicResults) {
     return <pre className="text-sm text-gray-700 whitespace-pre-wrap">{content}</pre>
   }
 
   return (
     <div className="flex flex-col gap-4">
-      {results.map((item, i) => (
-        <div key={i} className="border border-gray-200 rounded-lg p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-green-700 truncate mb-1">{item.link ?? item.url ?? ''}</p>
-              <a
-                href={item.link ?? item.url ?? '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-700 font-medium text-sm hover:underline"
-              >
-                {item.title ?? '（タイトルなし）'}
-              </a>
-              {item.snippet && (
-                <p className="text-gray-600 text-sm mt-1 leading-relaxed">{item.snippet}</p>
-              )}
+      {organicResults.map((item, i) => {
+        const url = item.link ?? item.url ?? ''
+        const heading = headingsMap[url]
+        return (
+          <div key={i} className="border border-gray-200 rounded-lg p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-green-700 truncate mb-1">{url}</p>
+                <a
+                  href={url || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-700 font-medium text-sm hover:underline"
+                >
+                  {item.title ?? '（タイトルなし）'}
+                </a>
+                {item.snippet && (
+                  <p className="text-gray-600 text-sm mt-1 leading-relaxed">{item.snippet}</p>
+                )}
+                {heading && (
+                  <HeadingsList
+                    headings={heading.headings}
+                    fetchStatus={heading.fetch_status}
+                  />
+                )}
+              </div>
+              <span className="text-xs text-gray-400 shrink-0">#{i + 1}</span>
             </div>
-            <span className="text-xs text-gray-400 shrink-0">#{i + 1}</span>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
