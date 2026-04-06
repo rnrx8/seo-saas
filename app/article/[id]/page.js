@@ -28,6 +28,7 @@ const TABS = [
   { key: 'article',       label: '記事' },
   { key: 'search_intent', label: '検索意図' },
   { key: 'outline',       label: '構成案' },
+  { key: 'paa_lsi',       label: 'PAA / LSI' },
   { key: 'serp',          label: '競合情報' },
 ]
 
@@ -145,6 +146,10 @@ export default function ArticlePage({ params }) {
                 </article>
               )}
 
+              {activeTab === 'paa_lsi' && (
+                <PaaLsiView content={artifacts['serp']} />
+              )}
+
               {activeTab === 'serp' && (
                 <SerpView content={artifacts['serp']} />
               )}
@@ -152,6 +157,63 @@ export default function ArticlePage({ params }) {
           </div>
         )}
       </main>
+    </div>
+  )
+}
+
+function PaaLsiView({ content }) {
+  let paa = []
+  let related = []
+
+  if (content) {
+    try {
+      const parsed = JSON.parse(content)
+      paa     = parsed.people_also_ask  ?? []
+      related = parsed.related_searches ?? []
+    } catch {
+      // パース失敗時は空のまま
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-8">
+      {/* PAA */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-800 mb-3">よくある質問（PAA）</h2>
+        {paa.length === 0 ? (
+          <p className="text-gray-400 text-sm">取得できませんでした</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {paa.map((item, i) => (
+              <div key={i} className="border border-gray-200 rounded-lg p-4">
+                <p className="font-medium text-gray-800 text-sm mb-1">Q. {item.question}</p>
+                {item.snippet && (
+                  <p className="text-gray-600 text-sm leading-relaxed">{item.snippet}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* LSI / Related searches */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-800 mb-3">関連キーワード（LSI候補）</h2>
+        {related.length === 0 ? (
+          <p className="text-gray-400 text-sm">取得できませんでした</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {related.map((kw, i) => (
+              <span
+                key={i}
+                className="rounded-full bg-blue-100 text-blue-800 px-3 py-1 text-sm"
+              >
+                {kw}
+              </span>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   )
 }
