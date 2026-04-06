@@ -6,6 +6,7 @@ import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { marked } from 'marked'
 import { getSupabase } from '@/lib/supabase'
 
 const MD_COMPONENTS = {
@@ -39,7 +40,6 @@ export default function ArticlePage({ params }) {
   const [artifacts, setArtifacts] = useState({})
   const [activeTab, setActiveTab] = useState('article')
   const [error, setError] = useState('')
-  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
@@ -67,14 +67,6 @@ export default function ArticlePage({ params }) {
     setArtifacts(map)
   }
 
-  async function handleCopy() {
-    const text = artifacts['article']
-    if (!text) return
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
   const isLoading = Object.keys(artifacts).length === 0 && !error
 
   return (
@@ -83,13 +75,6 @@ export default function ArticlePage({ params }) {
       <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-800">記事表示</h1>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleCopy}
-            disabled={!artifacts['article']}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-40"
-          >
-            {copied ? 'コピーしました！' : 'コピー'}
-          </button>
           <button
             onClick={() => router.push('/dashboard')}
             className="text-sm text-gray-500 hover:text-gray-700 border border-gray-300 px-4 py-2 rounded-lg transition-colors"
@@ -130,9 +115,7 @@ export default function ArticlePage({ params }) {
             {/* Tab content */}
             <div className="p-8">
               {activeTab === 'article' && (
-                <article className="max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{artifacts['article'] ?? ''}</ReactMarkdown>
-                </article>
+                <ArticleView markdown={artifacts['article'] ?? ''} />
               )}
 
               {activeTab === 'search_intent' && (
@@ -164,6 +147,72 @@ export default function ArticlePage({ params }) {
           </div>
         )}
       </main>
+    </div>
+  )
+}
+
+const VIEWS = [
+  { key: 'preview',  label: 'プレビュー' },
+  { key: 'markdown', label: 'Markdown' },
+  { key: 'html',     label: 'HTML' },
+]
+
+function ArticleView({ markdown }) {
+  const [view, setView] = useState('preview')
+  const [copied, setCopied] = useState(false)
+
+  const html = marked(markdown)
+
+  async function handleCopy() {
+    const text = view === 'html' ? html : markdown
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div>
+      {/* ビュー切り替え + コピーボタン */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex gap-1">
+          {VIEWS.map((v) => (
+            <button
+              key={v.key}
+              onClick={() => setView(v.key)}
+              className={`rounded border px-3 py-1 text-sm transition-colors ${
+                view === v.key
+                  ? 'bg-gray-800 text-white border-gray-800'
+                  : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={handleCopy}
+          className="rounded border border-gray-300 bg-white px-3 py-1 text-sm text-gray-600 hover:border-gray-400 transition-colors"
+        >
+          {copied ? 'コピーしました！' : 'コピー'}
+        </button>
+      </div>
+
+      {/* コンテンツ */}
+      {view === 'preview' && (
+        <article className="max-w-none">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{markdown}</ReactMarkdown>
+        </article>
+      )}
+      {view === 'markdown' && (
+        <pre className="bg-gray-50 p-4 rounded overflow-auto whitespace-pre-wrap text-sm text-gray-800">
+          {markdown}
+        </pre>
+      )}
+      {view === 'html' && (
+        <pre className="bg-gray-50 p-4 rounded overflow-auto whitespace-pre-wrap text-sm text-gray-800">
+          {html}
+        </pre>
+      )}
     </div>
   )
 }
