@@ -96,6 +96,7 @@ export default function SettingsPage() {
           <Link href="/settings" className="font-medium text-blue-600">プラン設定</Link>
           <Link href="/settings/services" className="hover:text-gray-700 transition-colors">サービス管理</Link>
           <Link href="/settings/ctas" className="hover:text-gray-700 transition-colors">CTA管理</Link>
+          <Link href="/settings/companies" className="hover:text-gray-700 transition-colors">企業管理</Link>
           <button onClick={handleLogout} className="hover:text-gray-700 transition-colors">ログアウト</button>
         </nav>
       </header>

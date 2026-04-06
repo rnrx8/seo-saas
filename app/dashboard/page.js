@@ -16,6 +16,7 @@ const PLAN_LABELS = {
 export default function DashboardPage() {
   const router = useRouter()
   const [keyword, setKeyword] = useState('')
+  const [category, setCategory] = useState('')
   const [jobs, setJobs] = useState([])
   const [profile, setProfile] = useState(null)
   const [generating, setGenerating] = useState(false)
@@ -72,9 +73,16 @@ export default function DashboardPage() {
     setStatusMessage(null)
 
     // Insert job
-    const { data: job, error: insertError } = await getSupabase()
+    const supabase = getSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: job, error: insertError } = await supabase
       .from('jobs')
-      .insert({ main_keyword: keyword.trim(), status: 'queued' })
+      .insert({
+        main_keyword: keyword.trim(),
+        status: 'queued',
+        category: category.trim() || null,
+        tenant_id: user.id,
+      })
       .select()
       .single()
 
@@ -86,6 +94,7 @@ export default function DashboardPage() {
 
     await fetchJobs()
     setKeyword('')
+    setCategory('')
 
     // Next.js プロキシ経由で Railway API にリクエスト（30分タイムアウト）
     const controller = new AbortController()
@@ -201,22 +210,32 @@ export default function DashboardPage() {
         {/* Generate form */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">記事を生成する</h2>
-          <form onSubmit={handleGenerate} className="flex gap-3">
+          <form onSubmit={handleGenerate} className="flex flex-col gap-3">
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                placeholder="メインキーワードを入力..."
+                disabled={generating}
+                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
+              />
+              <button
+                type="submit"
+                disabled={generating || !keyword.trim() || (!isPro && profile?.credits_remaining <= 0)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 whitespace-nowrap"
+              >
+                {generating ? '生成中...' : '記事生成'}
+              </button>
+            </div>
             <input
               type="text"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder="メインキーワードを入力..."
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="カテゴリ（任意）例：転職エージェント、クレジットカード"
               disabled={generating}
-              className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
             />
-            <button
-              type="submit"
-              disabled={generating || !keyword.trim() || (!isPro && profile?.credits_remaining <= 0)}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 whitespace-nowrap"
-            >
-              {generating ? '生成中...' : '記事生成'}
-            </button>
           </form>
           {!isPro && profile?.credits_remaining <= 0 && !generating && (
             <p className="text-sm text-red-600 mt-3">

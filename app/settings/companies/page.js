@@ -7,11 +7,31 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
 
-const EMPTY_FORM = { name: '', category: '', body: '', button_text: '', url: '' }
+const EMPTY_FORM = { name: '', category: '', recommend_level: 3, affiliate_url: '', notes: '' }
 
-export default function CtasPage() {
+const LEVEL_LABELS = {
+  5: '5：最強おすすめ（比較表1位・強い推薦文・CTA誘導）',
+  4: '4：おすすめ（比較表上位・推薦文あり）',
+  3: '3：条件付きおすすめ（〜な人向けとして紹介）',
+  2: '2：消極的紹介（特定ニーズがある人のみ）',
+  1: '1：比較用掲載（名前のみ・他社を引き立てる用途）',
+  0: '0：掲載しない',
+}
+
+function StarDisplay({ level }) {
+  if (level === 0) return <span className="text-xs text-gray-400">掲載しない</span>
+  return (
+    <span className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map(i => (
+        <span key={i} className={i <= level ? 'text-yellow-400' : 'text-gray-200'}>★</span>
+      ))}
+    </span>
+  )
+}
+
+export default function CompaniesPage() {
   const router = useRouter()
-  const [ctas, setCtas] = useState([])
+  const [companies, setCompanies] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null) // null | { mode: 'add'|'edit', form: {...} }
   const [saving, setSaving] = useState(false)
@@ -20,13 +40,16 @@ export default function CtasPage() {
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
       if (!session) { router.replace('/login'); return }
-      fetchCtas()
+      fetchCompanies()
     })
   }, [])
 
-  async function fetchCtas() {
-    const { data } = await getSupabase().from('cta_blocks').select('*').order('created_at', { ascending: false })
-    setCtas(data ?? [])
+  async function fetchCompanies() {
+    const { data } = await getSupabase()
+      .from('company_settings')
+      .select('*')
+      .order('recommend_level', { ascending: false })
+    setCompanies(data ?? [])
     setLoading(false)
   }
 
@@ -35,49 +58,49 @@ export default function CtasPage() {
     setError('')
   }
 
-  function openEdit(cta) {
+  function openEdit(company) {
     setModal({
       mode: 'edit',
       form: {
-        id: cta.id,
-        name: cta.name ?? '',
-        category: cta.category ?? '',
-        body: cta.body ?? '',
-        button_text: cta.button_text ?? '',
-        url: cta.url ?? '',
+        id: company.id,
+        name: company.name ?? '',
+        category: company.category ?? '',
+        recommend_level: company.recommend_level ?? 3,
+        affiliate_url: company.affiliate_url ?? '',
+        notes: company.notes ?? '',
       },
     })
     setError('')
   }
 
   async function handleDelete(id) {
-    if (!confirm('このCTAを削除しますか？')) return
-    await getSupabase().from('cta_blocks').delete().eq('id', id)
-    fetchCtas()
+    if (!confirm('この企業設定を削除しますか？')) return
+    await getSupabase().from('company_settings').delete().eq('id', id)
+    fetchCompanies()
   }
 
   async function handleSave() {
     if (!modal) return
     const { mode, form } = modal
-    if (!form.name.trim()) { setError('名前は必須です'); return }
+    if (!form.name.trim()) { setError('会社名は必須です'); return }
     setSaving(true)
     const supabase = getSupabase()
     const { data: { user } } = await supabase.auth.getUser()
     const payload = {
       name: form.name.trim(),
       category: form.category.trim(),
-      body: form.body.trim(),
-      button_text: form.button_text.trim(),
-      url: form.url.trim(),
+      recommend_level: Number(form.recommend_level),
+      affiliate_url: form.affiliate_url.trim(),
+      notes: form.notes.trim(),
     }
     if (mode === 'add') {
-      await supabase.from('cta_blocks').insert({ ...payload, tenant_id: user.id })
+      await supabase.from('company_settings').insert({ ...payload, tenant_id: user.id })
     } else {
-      await supabase.from('cta_blocks').update(payload).eq('id', form.id)
+      await supabase.from('company_settings').update(payload).eq('id', form.id)
     }
     setSaving(false)
     setModal(null)
-    fetchCtas()
+    fetchCompanies()
   }
 
   function updateForm(key, value) {
@@ -92,19 +115,19 @@ export default function CtasPage() {
           <Link href="/dashboard" className="hover:text-gray-700">ダッシュボード</Link>
           <Link href="/settings" className="hover:text-gray-700">プラン設定</Link>
           <Link href="/settings/services" className="hover:text-gray-700">サービス管理</Link>
-          <Link href="/settings/ctas" className="font-medium text-blue-600">CTA管理</Link>
-          <Link href="/settings/companies" className="hover:text-gray-700">企業管理</Link>
+          <Link href="/settings/ctas" className="hover:text-gray-700">CTA管理</Link>
+          <Link href="/settings/companies" className="font-medium text-blue-600">企業管理</Link>
         </nav>
       </header>
 
       <main className="max-w-4xl mx-auto px-8 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-800">CTA管理</h2>
+          <h2 className="text-xl font-semibold text-gray-800">企業管理</h2>
           <button
             onClick={openAdd}
             className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
-            ＋ CTAを追加
+            ＋ 企業を追加
           </button>
         </div>
 
@@ -112,37 +135,39 @@ export default function CtasPage() {
           <div className="flex justify-center py-20">
             <span className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : ctas.length === 0 ? (
+        ) : companies.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400 text-sm">
-            登録済みCTAがありません
+            登録済み企業がありません
           </div>
         ) : (
           <div className="grid gap-4">
-            {ctas.map(cta => (
-              <div key={cta.id} className="bg-white rounded-xl border border-gray-200 p-6">
+            {companies.map(company => (
+              <div key={company.id} className="bg-white rounded-xl border border-gray-200 p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-gray-800">{cta.name}</span>
-                      {cta.category && (
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{cta.category}</span>
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="font-semibold text-gray-800">{company.name}</span>
+                      {company.category && (
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{company.category}</span>
                       )}
+                      <StarDisplay level={company.recommend_level} />
                     </div>
-                    {cta.body && <p className="text-sm text-gray-600 mb-1 line-clamp-2">{cta.body}</p>}
-                    <div className="flex items-center gap-3 text-sm text-gray-500">
-                      {cta.button_text && <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs">{cta.button_text}</span>}
-                      {cta.url && <span className="text-xs text-blue-600 truncate max-w-xs">{cta.url}</span>}
-                    </div>
+                    {company.affiliate_url && (
+                      <p className="text-xs text-blue-600 truncate mb-1">{company.affiliate_url}</p>
+                    )}
+                    {company.notes && (
+                      <p className="text-sm text-gray-500 line-clamp-2">{company.notes}</p>
+                    )}
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <button
-                      onClick={() => openEdit(cta)}
+                      onClick={() => openEdit(company)}
                       className="border border-gray-300 text-gray-600 hover:bg-gray-50 text-sm px-3 py-1.5 rounded-lg transition-colors"
                     >
                       編集
                     </button>
                     <button
-                      onClick={() => handleDelete(cta.id)}
+                      onClick={() => handleDelete(company.id)}
                       className="border border-red-200 text-red-600 hover:bg-red-50 text-sm px-3 py-1.5 rounded-lg transition-colors"
                     >
                       削除
@@ -161,7 +186,7 @@ export default function CtasPage() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <h3 className="font-semibold text-gray-800">
-                {modal.mode === 'add' ? 'CTAを追加' : 'CTAを編集'}
+                {modal.mode === 'add' ? '企業を追加' : '企業を編集'}
               </h3>
               <button onClick={() => setModal(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
             </div>
@@ -170,7 +195,7 @@ export default function CtasPage() {
               {error && <p className="text-sm text-red-600 bg-red-50 rounded p-3">{error}</p>}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">名前（管理用）<span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">会社名 <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={modal.form.name}
@@ -185,40 +210,43 @@ export default function CtasPage() {
                   type="text"
                   value={modal.form.category}
                   onChange={e => updateForm('category', e.target.value)}
+                  placeholder="転職エージェント、クレジットカード など"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">誘導文</label>
-                <textarea
-                  value={modal.form.body}
-                  onChange={e => updateForm('body', e.target.value)}
-                  rows={3}
-                  placeholder="無料で試してみませんか？"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">ボタンテキスト</label>
-                <input
-                  type="text"
-                  value={modal.form.button_text}
-                  onChange={e => updateForm('button_text', e.target.value)}
-                  placeholder="無料で始める"
+                <label className="block text-sm font-medium text-gray-700 mb-1">おすすめレベル</label>
+                <select
+                  value={modal.form.recommend_level}
+                  onChange={e => updateForm('recommend_level', e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                >
+                  {[5, 4, 3, 2, 1, 0].map(level => (
+                    <option key={level} value={level}>{LEVEL_LABELS[level]}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">遷移先URL</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">アフィリエイトURL（任意）</label>
                 <input
                   type="url"
-                  value={modal.form.url}
-                  onChange={e => updateForm('url', e.target.value)}
+                  value={modal.form.affiliate_url}
+                  onChange={e => updateForm('affiliate_url', e.target.value)}
                   placeholder="https://..."
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">notes（任意）</label>
+                <textarea
+                  value={modal.form.notes}
+                  onChange={e => updateForm('notes', e.target.value)}
+                  rows={3}
+                  placeholder="40代以上に特化している点を強調する&#10;スカウト機能が強みなのでそこを推す&#10;手数料の高さには触れない"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
               </div>
             </div>

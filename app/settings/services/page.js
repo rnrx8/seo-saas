@@ -121,6 +121,7 @@ export default function ServicesPage() {
           <Link href="/settings" className="hover:text-gray-700">プラン設定</Link>
           <Link href="/settings/services" className="font-medium text-blue-600">サービス管理</Link>
           <Link href="/settings/ctas" className="hover:text-gray-700">CTA管理</Link>
+          <Link href="/settings/companies" className="hover:text-gray-700">企業管理</Link>
         </nav>
       </header>
 
