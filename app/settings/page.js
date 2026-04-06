@@ -91,17 +91,13 @@ export default function SettingsPage() {
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-800">SEO記事生成</h1>
-        <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-            ダッシュボード
-          </Link>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-          >
-            ログアウト
-          </button>
-        </div>
+        <nav className="flex items-center gap-6 text-sm text-gray-500">
+          <Link href="/dashboard" className="hover:text-gray-700 transition-colors">ダッシュボード</Link>
+          <Link href="/settings" className="font-medium text-blue-600">プラン設定</Link>
+          <Link href="/settings/services" className="hover:text-gray-700 transition-colors">サービス管理</Link>
+          <Link href="/settings/ctas" className="hover:text-gray-700 transition-colors">CTA管理</Link>
+          <button onClick={handleLogout} className="hover:text-gray-700 transition-colors">ログアウト</button>
+        </nav>
       </header>
 
       <main className="max-w-3xl mx-auto px-8 py-8 flex flex-col gap-8">
