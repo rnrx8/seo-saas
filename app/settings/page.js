@@ -47,6 +47,8 @@ export default function SettingsPage() {
   const router = useRouter()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [deleteModal, setDeleteModal] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
@@ -79,6 +81,51 @@ export default function SettingsPage() {
   async function handleLogout() {
     await getSupabase().auth.signOut()
     router.replace('/login')
+  }
+
+  async function handleExport() {
+    const supabase = getSupabase()
+    const [jobsRes, servicesRes, ctasRes, companiesRes, sourcesRes, artifactsRes] =
+      await Promise.all([
+        supabase.from('jobs').select('id, main_keyword, status, category, created_at'),
+        supabase.from('services').select('*'),
+        supabase.from('cta_blocks').select('*'),
+        supabase.from('company_settings').select('*'),
+        supabase.from('primary_sources').select('id, title, category, file_path, file_type, created_at'),
+        supabase.from('artifacts').select('*'),
+      ])
+    const exportData = {
+      exported_at: new Date().toISOString(),
+      jobs: jobsRes.data ?? [],
+      artifacts: artifactsRes.data ?? [],
+      services: servicesRes.data ?? [],
+      cta_blocks: ctasRes.data ?? [],
+      company_settings: companiesRes.data ?? [],
+      primary_sources: sourcesRes.data ?? [],
+    }
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `seo_data_export_${new Date().toISOString().split('T')[0]}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function handleDeleteAll() {
+    setDeleting(true)
+    try {
+      const { data: { session } } = await getSupabase().auth.getSession()
+      await fetch('/api/delete-all-data', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      await getSupabase().auth.signOut()
+      router.replace('/login')
+    } catch {
+      setDeleting(false)
+      setDeleteModal(false)
+    }
   }
 
   if (loading) return null
@@ -205,7 +252,66 @@ export default function SettingsPage() {
             })}
           </div>
         </section>
+        {/* Data management */}
+        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">データ管理</h2>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-700">データをエクスポート</p>
+                <p className="text-xs text-gray-500 mt-0.5">記事・設定・成果物をJSONでダウンロード</p>
+              </div>
+              <button
+                onClick={handleExport}
+                className="border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm px-4 py-2 rounded-lg transition-colors"
+              >
+                エクスポート
+              </button>
+            </div>
+            <div className="border-t border-gray-100 pt-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-red-600">アカウントとデータをすべて削除する</p>
+                <p className="text-xs text-gray-500 mt-0.5">記事・設定・ファイルを含む全データとアカウントを完全削除</p>
+              </div>
+              <button
+                onClick={() => setDeleteModal(true)}
+                className="border border-red-300 text-red-600 hover:bg-red-50 text-sm px-4 py-2 rounded-lg transition-colors"
+              >
+                削除する
+              </button>
+            </div>
+          </div>
+        </section>
       </main>
+
+      {/* Delete confirmation modal */}
+      {deleteModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h3 className="font-semibold text-gray-900 mb-3">本当に削除しますか？</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              この操作は取り消せません。生成した記事・設定・アップロードファイルを含む
+              すべてのデータが完全に削除され、アカウントも削除されます。
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteModal(false)}
+                disabled={deleting}
+                className="border border-gray-300 text-gray-600 hover:bg-gray-50 text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleDeleteAll}
+                disabled={deleting}
+                className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {deleting ? '削除中...' : '削除する'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
