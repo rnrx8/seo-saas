@@ -7,6 +7,15 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
 
+function sanitizeFilename(filename) {
+  const ext = filename.split('.').pop()
+  const safe = filename
+    .replace(/\.[^.]+$/, '')
+    .replace(/[^a-zA-Z0-9\-_]/g, '_')
+    .substring(0, 50)
+  return `${Date.now()}_${safe}.${ext}`
+}
+
 const ACCEPTED_TYPES = '.pdf,.xlsx,.xls,.csv,.docx,.txt'
 
 function fileTypeLabel(fileType) {
@@ -77,7 +86,8 @@ export default function SourcesPage() {
     setError('')
     const supabase = getSupabase()
     const { data: { user } } = await supabase.auth.getUser()
-    const path = `${user.id}/sources/${Date.now()}_${file.name}`
+    const safeName = sanitizeFilename(file.name)
+    const path = `${user.id}/sources/${safeName}`
     const { error: upErr } = await supabase.storage.from('documents').upload(path, file)
     if (upErr) { setError('アップロードに失敗しました: ' + upErr.message); setUploading(false); return }
     const fileType = guessFileType(file.name)

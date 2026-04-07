@@ -7,6 +7,15 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
 
+function sanitizeFilename(filename) {
+  const ext = filename.split('.').pop()
+  const safe = filename
+    .replace(/\.[^.]+$/, '')
+    .replace(/[^a-zA-Z0-9\-_]/g, '_')
+    .substring(0, 50)
+  return `${Date.now()}_${safe}.${ext}`
+}
+
 const EMPTY_FORM = { name: '', category: '', url: '', raw_content: '', selling_points_text: '', file_path: '', file_name: '' }
 
 const ACCEPTED_TYPES = '.pdf,.xlsx,.xls,.csv,.docx,.txt'
@@ -68,7 +77,8 @@ export default function ServicesPage() {
     setError('')
     const supabase = getSupabase()
     const { data: { user } } = await supabase.auth.getUser()
-    const path = `${user.id}/${Date.now()}_${file.name}`
+    const safeName = sanitizeFilename(file.name)
+    const path = `${user.id}/${safeName}`
     const { error: upErr } = await supabase.storage.from('documents').upload(path, file)
     if (upErr) { setError('アップロードに失敗しました: ' + upErr.message); setUploading(false); return }
     updateForm('file_path', path)
