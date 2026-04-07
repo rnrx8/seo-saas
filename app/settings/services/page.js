@@ -7,7 +7,9 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
 
-const EMPTY_FORM = { name: '', category: '', url: '', raw_content: '', selling_points_text: '' }
+const EMPTY_FORM = { name: '', category: '', url: '', raw_content: '', selling_points_text: '', file_path: '', file_name: '' }
+
+const ACCEPTED_TYPES = '.pdf,.xlsx,.xls,.csv,.docx,.txt'
 
 export default function ServicesPage() {
   const router = useRouter()
@@ -16,6 +18,7 @@ export default function ServicesPage() {
   const [modal, setModal] = useState(null) // null | { mode: 'add'|'edit', form: {...} }
   const [extracting, setExtracting] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -46,6 +49,8 @@ export default function ServicesPage() {
         url: svc.url ?? '',
         raw_content: svc.raw_content ?? '',
         selling_points_text: (svc.selling_points ?? []).join('\n'),
+        file_path: svc.file_path ?? '',
+        file_name: svc.file_path ? svc.file_path.split('/').pop().replace(/^\d+_/, '') : '',
       },
     })
     setError('')
@@ -57,17 +62,32 @@ export default function ServicesPage() {
     fetchServices()
   }
 
+  async function handleFileUpload(file) {
+    if (!file) return
+    setUploading(true)
+    setError('')
+    const supabase = getSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+    const path = `${user.id}/${Date.now()}_${file.name}`
+    const { error: upErr } = await supabase.storage.from('documents').upload(path, file)
+    if (upErr) { setError('アップロードに失敗しました: ' + upErr.message); setUploading(false); return }
+    updateForm('file_path', path)
+    updateForm('file_name', file.name)
+    setUploading(false)
+  }
+
   async function handleExtract() {
     if (!modal) return
-    const { url, raw_content } = modal.form
-    if (!url && !raw_content) return
+    const { file_path, url, raw_content } = modal.form
+    if (!file_path && !url && !raw_content) return
     setExtracting(true)
     setError('')
     try {
+      const body = file_path ? { file_path } : url ? { url, text: raw_content } : { text: raw_content }
       const res = await fetch('/api/extract-selling-points', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, text: raw_content }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (data.selling_points) {
@@ -95,6 +115,7 @@ export default function ServicesPage() {
       url: form.url.trim(),
       raw_content: form.raw_content.trim(),
       selling_points,
+      file_path: form.file_path || null,
     }
     if (mode === 'add') {
       await supabase.from('services').insert({ ...payload, tenant_id: user.id })
@@ -110,7 +131,7 @@ export default function ServicesPage() {
     setModal(m => ({ ...m, form: { ...m.form, [key]: value } }))
   }
 
-  const canExtract = modal && (modal.form.url.trim() || modal.form.raw_content.trim())
+  const canExtract = modal && (modal.form.file_path || modal.form.url.trim() || modal.form.raw_content.trim())
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -122,6 +143,7 @@ export default function ServicesPage() {
           <Link href="/settings/services" className="font-medium text-blue-600">サービス管理</Link>
           <Link href="/settings/ctas" className="hover:text-gray-700">CTA管理</Link>
           <Link href="/settings/companies" className="hover:text-gray-700">企業管理</Link>
+          <Link href="/settings/sources" className="hover:text-gray-700">一次情報</Link>
         </nav>
       </header>
 
@@ -225,6 +247,32 @@ export default function ServicesPage() {
                   placeholder="https://..."
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ファイルアップロード（任意）</label>
+                {modal.form.file_name ? (
+                  <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 bg-gray-50">
+                    <span className="text-sm text-gray-700 flex-1 truncate">{modal.form.file_name}</span>
+                    <button
+                      type="button"
+                      onClick={() => { updateForm('file_path', ''); updateForm('file_name', '') }}
+                      className="text-xs text-red-500 hover:text-red-700 shrink-0"
+                    >
+                      削除
+                    </button>
+                  </div>
+                ) : (
+                  <label className={`flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-lg px-3 py-4 cursor-pointer hover:border-blue-400 transition-colors ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <span className="text-sm text-gray-500">{uploading ? 'アップロード中...' : 'PDF・Excel・CSV・Word・テキストを選択'}</span>
+                    <input
+                      type="file"
+                      accept={ACCEPTED_TYPES}
+                      className="hidden"
+                      onChange={e => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
+                    />
+                  </label>
+                )}
               </div>
 
               <div>

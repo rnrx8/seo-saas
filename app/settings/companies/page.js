@@ -142,6 +142,7 @@ export default function CompaniesPage() {
           <Link href="/settings/services" className="hover:text-gray-700">サービス管理</Link>
           <Link href="/settings/ctas" className="hover:text-gray-700">CTA管理</Link>
           <Link href="/settings/companies" className="font-medium text-blue-600">企業管理</Link>
+          <Link href="/settings/sources" className="hover:text-gray-700">一次情報</Link>
         </nav>
       </header>
 

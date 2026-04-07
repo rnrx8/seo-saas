@@ -1,27 +1,34 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { extractTextFromStorage } from '../_lib/file-parser'
 
 export const dynamic = 'force-dynamic'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export async function POST(request) {
-  const { url, text } = await request.json()
+  const { url, text, file_path } = await request.json()
 
-  if (!url && !text) {
-    return Response.json({ error: 'url または text が必要です' }, { status: 400 })
+  if (!file_path && !url && !text) {
+    return Response.json({ error: 'file_path・url・text のいずれかが必要です' }, { status: 400 })
   }
 
-  let sourceText = text || ''
+  let sourceText = ''
 
-  // URL が指定されていればフェッチ
-  if (url) {
+  // 優先順位: ファイル > URL > テキスト
+  if (file_path) {
+    try {
+      const raw = await extractTextFromStorage(file_path)
+      sourceText = raw.slice(0, 8000)
+    } catch (err) {
+      return Response.json({ error: 'ファイルの読み込みに失敗しました: ' + err.message }, { status: 502 })
+    }
+  } else if (url) {
     try {
       const res = await fetch(url, {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SEO-Pipeline/1.0)' },
         signal: AbortSignal.timeout(8000),
       })
       const html = await res.text()
-      // HTML タグ除去・空白正規化
       sourceText = html
         .replace(/<script[\s\S]*?<\/script>/gi, '')
         .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -33,8 +40,11 @@ export async function POST(request) {
       if (!text) {
         return Response.json({ error: 'URLの取得に失敗しました' }, { status: 502 })
       }
-      // text がある場合はフォールバック
     }
+  }
+
+  if (!sourceText && text) {
+    sourceText = text.slice(0, 8000)
   }
 
   if (!sourceText) {
