@@ -17,6 +17,8 @@ export default function DashboardPage() {
   const router = useRouter()
   const [keyword, setKeyword] = useState('')
   const [category, setCategory] = useState('')
+  const [companyRestriction, setCompanyRestriction] = useState('category') // 'category'|'registered_only'|'ai'
+  const [categorySetting, setCategorySetting] = useState(null) // 'registered_only'|'ai'|null
   const [jobs, setJobs] = useState([])
   const [profile, setProfile] = useState(null)
   const [generating, setGenerating] = useState(false)
@@ -59,6 +61,17 @@ export default function DashboardPage() {
     }
   }, [pollingId])
 
+  useEffect(() => {
+    const trimmed = category.trim()
+    if (!trimmed) { setCategorySetting(null); return }
+    getSupabase()
+      .from('category_settings')
+      .select('company_restriction')
+      .eq('category', trimmed)
+      .maybeSingle()
+      .then(({ data }) => setCategorySetting(data?.company_restriction ?? null))
+  }, [category])
+
   async function handleGenerate(e) {
     e.preventDefault()
     if (!keyword.trim() || generating) return
@@ -75,6 +88,12 @@ export default function DashboardPage() {
     // Insert job
     const supabase = getSupabase()
     const { data: { user } } = await supabase.auth.getUser()
+    // company_restriction を解決（'category' → category_settingsの値、未設定はデフォルト'ai'）
+    let resolvedRestriction = companyRestriction
+    if (companyRestriction === 'category') {
+      resolvedRestriction = categorySetting ?? 'ai'
+    }
+
     const { data: job, error: insertError } = await supabase
       .from('jobs')
       .insert({
@@ -82,6 +101,7 @@ export default function DashboardPage() {
         status: 'queued',
         category: category.trim() || null,
         tenant_id: user.id,
+        company_restriction: resolvedRestriction,
       })
       .select()
       .single()
@@ -95,6 +115,8 @@ export default function DashboardPage() {
     await fetchJobs()
     setKeyword('')
     setCategory('')
+    setCompanyRestriction('category')
+    setCategorySetting(null)
 
     // Next.js プロキシ経由で Railway API にリクエスト（30分タイムアウト）
     const controller = new AbortController()
@@ -228,14 +250,30 @@ export default function DashboardPage() {
                 {generating ? '生成中...' : '記事生成'}
               </button>
             </div>
-            <input
-              type="text"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="カテゴリ（任意）例：転職エージェント、クレジットカード"
-              disabled={generating}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
-            />
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="カテゴリ（任意）例：転職、クレジットカード"
+                disabled={generating}
+                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
+              />
+              <select
+                value={companyRestriction}
+                onChange={(e) => setCompanyRestriction(e.target.value)}
+                disabled={generating}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700"
+              >
+                <option value="category">
+                  {companyRestriction === 'category' && categorySetting
+                    ? `カテゴリ設定に従う（現在：${categorySetting === 'registered_only' ? '登録企業のみ' : 'AIに任せる'}）`
+                    : 'カテゴリ設定に従う'}
+                </option>
+                <option value="registered_only">登録企業のみ（強制）</option>
+                <option value="ai">AIに任せる（強制）</option>
+              </select>
+            </div>
           </form>
           {!isPro && profile?.credits_remaining <= 0 && !generating && (
             <p className="text-sm text-red-600 mt-3">

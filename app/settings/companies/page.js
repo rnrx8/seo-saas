@@ -32,6 +32,7 @@ function StarDisplay({ level }) {
 export default function CompaniesPage() {
   const router = useRouter()
   const [companies, setCompanies] = useState([])
+  const [categorySettings, setCategorySettings] = useState({}) // { [category]: 'registered_only'|'ai' }
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null) // null | { mode: 'add'|'edit', form: {...} }
   const [saving, setSaving] = useState(false)
@@ -40,7 +41,7 @@ export default function CompaniesPage() {
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
       if (!session) { router.replace('/login'); return }
-      fetchCompanies()
+      Promise.all([fetchCompanies(), fetchCategorySettings()])
     })
   }, [])
 
@@ -51,6 +52,27 @@ export default function CompaniesPage() {
       .order('recommend_level', { ascending: false })
     setCompanies(data ?? [])
     setLoading(false)
+  }
+
+  async function fetchCategorySettings() {
+    const { data } = await getSupabase()
+      .from('category_settings')
+      .select('category, company_restriction')
+    if (data) {
+      const map = {}
+      data.forEach(row => { map[row.category] = row.company_restriction })
+      setCategorySettings(map)
+    }
+  }
+
+  async function handleCategoryRestriction(category, value) {
+    const supabase = getSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('category_settings').upsert(
+      { tenant_id: user.id, category, company_restriction: value },
+      { onConflict: 'tenant_id,category' }
+    )
+    setCategorySettings(prev => ({ ...prev, [category]: value }))
   }
 
   function openAdd() {
@@ -107,6 +129,9 @@ export default function CompaniesPage() {
     setModal(m => ({ ...m, form: { ...m.form, [key]: value } }))
   }
 
+  // 登録済みカテゴリ（重複排除・空除外）
+  const categories = [...new Set(companies.map(c => c.category).filter(Boolean))]
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
@@ -120,64 +145,115 @@ export default function CompaniesPage() {
         </nav>
       </header>
 
-      <main className="max-w-4xl mx-auto px-8 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-800">企業管理</h2>
-          <button
-            onClick={openAdd}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            ＋ 企業を追加
-          </button>
-        </div>
+      <main className="max-w-4xl mx-auto px-8 py-8 flex flex-col gap-6">
 
-        {loading ? (
-          <div className="flex justify-center py-20">
-            <span className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        {/* カテゴリ別設定 */}
+        {!loading && categories.length > 0 && (
+          <section className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h2 className="text-base font-semibold text-gray-800">カテゴリ別設定</h2>
+            </div>
+            <table className="w-full text-sm">
+              <tbody className="divide-y divide-gray-100">
+                {categories.map(cat => {
+                  const current = categorySettings[cat] ?? 'ai'
+                  return (
+                    <tr key={cat} className="px-6">
+                      <td className="px-6 py-4 font-medium text-gray-700 w-40">{cat}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-6 text-sm text-gray-600">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name={`restriction-${cat}`}
+                              value="registered_only"
+                              checked={current === 'registered_only'}
+                              onChange={() => handleCategoryRestriction(cat, 'registered_only')}
+                              className="accent-blue-600"
+                            />
+                            登録企業のみ
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name={`restriction-${cat}`}
+                              value="ai"
+                              checked={current === 'ai'}
+                              onChange={() => handleCategoryRestriction(cat, 'ai')}
+                              className="accent-blue-600"
+                            />
+                            AIに任せる
+                          </label>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </section>
+        )}
+
+        {/* 企業一覧 */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-800">企業管理</h2>
+            <button
+              onClick={openAdd}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              ＋ 企業を追加
+            </button>
           </div>
-        ) : companies.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400 text-sm">
-            登録済み企業がありません
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {companies.map(company => (
-              <div key={company.id} className="bg-white rounded-xl border border-gray-200 p-6">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="font-semibold text-gray-800">{company.name}</span>
-                      {company.category && (
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{company.category}</span>
+
+          {loading ? (
+            <div className="flex justify-center py-20">
+              <span className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : companies.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400 text-sm">
+              登録済み企業がありません
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {companies.map(company => (
+                <div key={company.id} className="bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="font-semibold text-gray-800">{company.name}</span>
+                        {company.category && (
+                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{company.category}</span>
+                        )}
+                        <StarDisplay level={company.recommend_level} />
+                      </div>
+                      {company.affiliate_url && (
+                        <p className="text-xs text-blue-600 truncate mb-1">{company.affiliate_url}</p>
                       )}
-                      <StarDisplay level={company.recommend_level} />
+                      {company.notes && (
+                        <p className="text-sm text-gray-500 line-clamp-2">{company.notes}</p>
+                      )}
                     </div>
-                    {company.affiliate_url && (
-                      <p className="text-xs text-blue-600 truncate mb-1">{company.affiliate_url}</p>
-                    )}
-                    {company.notes && (
-                      <p className="text-sm text-gray-500 line-clamp-2">{company.notes}</p>
-                    )}
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button
-                      onClick={() => openEdit(company)}
-                      className="border border-gray-300 text-gray-600 hover:bg-gray-50 text-sm px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      編集
-                    </button>
-                    <button
-                      onClick={() => handleDelete(company.id)}
-                      className="border border-red-200 text-red-600 hover:bg-red-50 text-sm px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      削除
-                    </button>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() => openEdit(company)}
+                        className="border border-gray-300 text-gray-600 hover:bg-gray-50 text-sm px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        編集
+                      </button>
+                      <button
+                        onClick={() => handleDelete(company.id)}
+                        className="border border-red-200 text-red-600 hover:bg-red-50 text-sm px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        削除
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </main>
 
       {/* Modal */}
