@@ -47,7 +47,9 @@ export default function SettingsPage() {
   const router = useRouter()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [deleteModal, setDeleteModal] = useState(false)
+  const [deleteStep, setDeleteStep] = useState(null) // null | 'confirm' | 'password'
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deletePasswordError, setDeletePasswordError] = useState('')
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
@@ -114,18 +116,37 @@ export default function SettingsPage() {
 
   async function handleDeleteAll() {
     setDeleting(true)
+    setDeletePasswordError('')
+    const supabase = getSupabase()
     try {
-      const { data: { session } } = await getSupabase().auth.getSession()
+      // パスワード確認
+      const { data: { user } } = await supabase.auth.getUser()
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: deletePassword,
+      })
+      if (signInError) {
+        setDeletePasswordError('パスワードが正しくありません')
+        setDeleting(false)
+        return
+      }
+      // 削除実行
+      const { data: { session } } = await supabase.auth.getSession()
       await fetch('/api/delete-all-data', {
         method: 'POST',
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
-      await getSupabase().auth.signOut()
+      await supabase.auth.signOut()
       router.replace('/login')
     } catch {
       setDeleting(false)
-      setDeleteModal(false)
     }
+  }
+
+  function closeDeleteModal() {
+    setDeleteStep(null)
+    setDeletePassword('')
+    setDeletePasswordError('')
   }
 
   if (loading) return null
@@ -270,11 +291,11 @@ export default function SettingsPage() {
             </div>
             <div className="border-t border-gray-100 pt-4 flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-red-600">アカウントとデータをすべて削除する</p>
-                <p className="text-xs text-gray-500 mt-0.5">記事・設定・ファイルを含む全データとアカウントを完全削除</p>
+                <p className="text-sm font-medium text-red-600">データをすべて削除する</p>
+                <p className="text-xs text-gray-500 mt-0.5">生成記事・設定・ファイルを含む全データを削除します。アカウントは削除されません。</p>
               </div>
               <button
-                onClick={() => setDeleteModal(true)}
+                onClick={() => setDeleteStep('confirm')}
                 className="border border-red-300 text-red-600 hover:bg-red-50 text-sm px-4 py-2 rounded-lg transition-colors"
               >
                 削除する
@@ -284,18 +305,54 @@ export default function SettingsPage() {
         </section>
       </main>
 
-      {/* Delete confirmation modal */}
-      {deleteModal && (
+      {/* STEP1: 確認モーダル */}
+      {deleteStep === 'confirm' && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-            <h3 className="font-semibold text-gray-900 mb-3">本当に削除しますか？</h3>
-            <p className="text-sm text-gray-600 mb-6">
-              この操作は取り消せません。生成した記事・設定・アップロードファイルを含む
-              すべてのデータが完全に削除され、アカウントも削除されます。
-            </p>
+            <h3 className="font-semibold text-gray-900 mb-3">以下のデータをすべて削除します</h3>
+            <ul className="text-sm text-gray-600 mb-4 flex flex-col gap-1 list-disc pl-5">
+              <li>生成した記事・ファクトシート等の成果物</li>
+              <li>サービス・CTA・企業・一次情報の設定</li>
+              <li>アップロードしたファイル</li>
+            </ul>
+            <p className="text-sm text-red-600 mb-6">この操作は取り消せません。続けますか？</p>
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => setDeleteModal(false)}
+                onClick={closeDeleteModal}
+                className="border border-gray-300 text-gray-600 hover:bg-gray-50 text-sm px-4 py-2 rounded-lg transition-colors"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={() => setDeleteStep('password')}
+                className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                次へ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STEP2: パスワード確認モーダル */}
+      {deleteStep === 'password' && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h3 className="font-semibold text-gray-900 mb-2">パスワードを確認</h3>
+            <p className="text-sm text-gray-600 mb-4">確認のため、現在のパスワードを入力してください。</p>
+            <input
+              type="password"
+              value={deletePassword}
+              onChange={e => { setDeletePassword(e.target.value); setDeletePasswordError('') }}
+              placeholder="パスワード"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 mb-2"
+            />
+            {deletePasswordError && (
+              <p className="text-xs text-red-600 mb-3">{deletePasswordError}</p>
+            )}
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={closeDeleteModal}
                 disabled={deleting}
                 className="border border-gray-300 text-gray-600 hover:bg-gray-50 text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
               >
@@ -303,7 +360,7 @@ export default function SettingsPage() {
               </button>
               <button
                 onClick={handleDeleteAll}
-                disabled={deleting}
+                disabled={deleting || !deletePassword}
                 className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
               >
                 {deleting ? '削除中...' : '削除する'}

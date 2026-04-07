@@ -80,9 +80,6 @@ export async function POST(request) {
     // user_profiles
     await supabase.from('user_profiles').delete().eq('id', userId)
 
-    // 3. Auth ユーザーアカウントを削除
-    await supabase.auth.admin.deleteUser(userId)
-
     return Response.json({ success: true })
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 })
