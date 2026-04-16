@@ -65,15 +65,31 @@ export async function POST(request) {
 
   // WordPress REST API に投稿
   const wpBase = profile.wp_url.replace(/\/$/, '')
-  const appPassword = profile.wp_app_password.replace(/\s/g, '')
-  const credentials = Buffer.from(`${profile.wp_username}:${appPassword}`).toString('base64')
 
   try {
+    // JWTトークン取得
+    const tokenRes = await fetch(`${wpBase}/wp-json/jwt-auth/v1/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: profile.wp_username,
+        password: profile.wp_app_password,
+      }),
+    })
+    const tokenData = await tokenRes.json()
+    if (!tokenRes.ok || !tokenData.token) {
+      return Response.json(
+        { error: tokenData.message ?? 'WordPress認証に失敗しました' },
+        { status: 401 }
+      )
+    }
+
+    // 記事を投稿
     const res = await fetch(`${wpBase}/wp-json/wp/v2/posts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Basic ${credentials}`,
+        Authorization: `Bearer ${tokenData.token}`,
       },
       body: JSON.stringify({
         title,

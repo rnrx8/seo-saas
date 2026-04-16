@@ -296,7 +296,7 @@ export default function SettingsPage() {
         {/* WordPress連携 */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-1">WordPress連携</h2>
-          <p className="text-xs text-gray-500 mb-4">設定するとWordPressへ記事を下書き投稿できます。Application Passwordは管理画面→ユーザー→プロフィールで発行できます。</p>
+          <p className="text-xs text-gray-500 mb-4">設定するとWordPressへ記事を下書き投稿できます。「JWT Authentication for WP-API」プラグインが必要です。</p>
           <div className="flex flex-col gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">サイトURL</label>
@@ -319,12 +319,12 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Application Password</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">パスワード</label>
               <input
                 type="password"
                 value={wpAppPassword}
                 onChange={e => setWpAppPassword(e.target.value)}
-                placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
+                placeholder="WordPressのログインパスワード"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
