@@ -39,6 +39,11 @@ export default function DashboardPage() {
   const [wordCountValue, setWordCountValue] = useState('')
   const [targetAudience, setTargetAudience] = useState('')
   const [customPrompt, setCustomPrompt] = useState('')
+  const [mustReferenceUrls, setMustReferenceUrls] = useState('')
+  const [neverReferenceUrls, setNeverReferenceUrls] = useState('')
+  const [showUrlFields, setShowUrlFields] = useState(false)
+  const [bulkMode, setBulkMode] = useState(false)
+  const [bulkKeywords, setBulkKeywords] = useState('')
   const [jobs, setJobs] = useState([])
   const [profile, setProfile] = useState(null)
   const [generating, setGenerating] = useState(false)
@@ -92,6 +97,56 @@ export default function DashboardPage() {
       .then(({ data }) => setCategorySetting(data?.company_restriction ?? null))
   }, [category])
 
+  async function handleBulkGenerate(e) {
+    e.preventDefault()
+    const keywords = bulkKeywords.split('\n').map(k => k.trim()).filter(Boolean)
+    if (!keywords.length || generating) return
+
+    setGenerating(true)
+    setStatusMessage(null)
+
+    const supabase = getSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+    let resolvedRestriction = companyRestriction
+    if (companyRestriction === 'category') resolvedRestriction = categorySetting ?? 'ai'
+    const resolvedPurpose = articlePurpose === 'other' ? (articlePurposeOther.trim() || null) : (articlePurpose || null)
+
+    let successCount = 0
+    for (let i = 0; i < keywords.length; i++) {
+      const kw = keywords[i]
+      setStatusMessage({ type: 'info', text: `登録中… (${i + 1}/${keywords.length}) ${kw}` })
+      const { data: job, error } = await supabase.from('jobs').insert({
+        main_keyword: kw,
+        status: 'queued',
+        category: category.trim() || null,
+        tenant_id: user.id,
+        company_restriction: resolvedRestriction,
+        delivery_type: deliveryType,
+        article_purpose: resolvedPurpose,
+        word_count_setting: wordCountValue || null,
+        target_audience: targetAudience.trim() || null,
+        custom_prompt: customPrompt.trim() || null,
+        must_reference_urls: mustReferenceUrls.trim() || null,
+        never_reference_urls: neverReferenceUrls.trim() || null,
+      }).select().single()
+
+      if (!error && job) {
+        fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ job_id: job.id, keyword: job.main_keyword }),
+        }).catch(() => {})
+        successCount++
+      }
+      if (i < keywords.length - 1) await new Promise(r => setTimeout(r, 300))
+    }
+
+    await fetchJobs()
+    setBulkKeywords('')
+    setGenerating(false)
+    setStatusMessage({ type: 'success', text: `${successCount}件を登録しました。バックグラウンドで生成が開始されます。` })
+  }
+
   async function handleGenerate(e) {
     e.preventDefault()
     if (!keyword.trim() || generating) return
@@ -132,6 +187,8 @@ export default function DashboardPage() {
         word_count_setting: resolvedWordCount,
         target_audience: targetAudience.trim() || null,
         custom_prompt: customPrompt.trim() || null,
+        must_reference_urls: mustReferenceUrls.trim() || null,
+        never_reference_urls: neverReferenceUrls.trim() || null,
       })
       .select()
       .single()
@@ -153,6 +210,8 @@ export default function DashboardPage() {
     setWordCountValue('')
     setTargetAudience('')
     setCustomPrompt('')
+    setMustReferenceUrls('')
+    setNeverReferenceUrls('')
 
     // Next.js プロキシ経由で Railway API にリクエスト（30分タイムアウト）
     const controller = new AbortController()
@@ -271,7 +330,7 @@ export default function DashboardPage() {
         {/* Generate form */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">記事を生成する</h2>
-          <form onSubmit={handleGenerate} className="flex flex-col gap-3">
+          <form onSubmit={bulkMode ? handleBulkGenerate : handleGenerate} className="flex flex-col gap-3">
             {/* 納品物の選択 */}
             <div className="flex gap-2">
               {[
@@ -294,21 +353,48 @@ export default function DashboardPage() {
                 </button>
               ))}
             </div>
+            {/* 単体 / 一括 切り替え */}
+            <div className="flex items-center gap-3">
+              <div className="flex gap-1">
+                {[{ v: false, label: '単体' }, { v: true, label: '一括' }].map(opt => (
+                  <button
+                    key={String(opt.v)}
+                    type="button"
+                    onClick={() => setBulkMode(opt.v)}
+                    disabled={generating}
+                    className={`px-3 py-1 rounded text-xs font-medium border transition-colors disabled:opacity-50 ${bulkMode === opt.v ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-300 hover:border-gray-400'}`}
+                  >{opt.label}</button>
+                ))}
+              </div>
+              {bulkMode && <span className="text-xs text-gray-400">1行1キーワード</span>}
+            </div>
+            {/* キーワード入力 */}
             <div className="flex gap-3">
-              <input
-                type="text"
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                placeholder="メインキーワードを入力..."
-                disabled={generating}
-                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
-              />
+              {bulkMode ? (
+                <textarea
+                  value={bulkKeywords}
+                  onChange={(e) => setBulkKeywords(e.target.value)}
+                  placeholder={"保険 30代 おすすめ\nクレジットカード 比較\n転職 エージェント おすすめ"}
+                  disabled={generating}
+                  rows={4}
+                  className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 resize-none"
+                />
+              ) : (
+                <input
+                  type="text"
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  placeholder="メインキーワードを入力..."
+                  disabled={generating}
+                  className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
+                />
+              )}
               <button
                 type="submit"
-                disabled={generating || !keyword.trim() || (!isPro && profile?.credits_remaining <= 0)}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 whitespace-nowrap"
+                disabled={generating || (bulkMode ? !bulkKeywords.trim() : (!keyword.trim() || (!isPro && profile?.credits_remaining <= 0)))}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 whitespace-nowrap self-start"
               >
-                {generating ? '生成中...' : '記事生成'}
+                {generating ? (bulkMode ? '登録中...' : '生成中...') : (bulkMode ? '一括登録' : '記事生成')}
               </button>
             </div>
             <div className="flex gap-3">
@@ -419,6 +505,34 @@ export default function DashboardPage() {
               rows={2}
               className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 resize-none"
             />
+            {/* 参照URL設定 */}
+            <button
+              type="button"
+              onClick={() => setShowUrlFields(v => !v)}
+              className="text-xs text-gray-400 hover:text-gray-600 text-left transition-colors"
+            >
+              {showUrlFields ? '▲ 参照URL設定を閉じる' : '▼ 参照URL設定（任意）'}
+            </button>
+            {showUrlFields && (
+              <div className="flex flex-col gap-2 pl-2 border-l-2 border-gray-100">
+                <textarea
+                  value={mustReferenceUrls}
+                  onChange={(e) => setMustReferenceUrls(e.target.value)}
+                  placeholder={"参照必須URL（1行1URL）\nhttps://example.com/page1\nhttps://example.com/page2"}
+                  disabled={generating}
+                  rows={3}
+                  className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 resize-none"
+                />
+                <textarea
+                  value={neverReferenceUrls}
+                  onChange={(e) => setNeverReferenceUrls(e.target.value)}
+                  placeholder={"参照・言及禁止URL（1行1URL）\nhttps://competitor.com"}
+                  disabled={generating}
+                  rows={2}
+                  className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 resize-none"
+                />
+              </div>
+            )}
           </form>
           {similarJobs.length > 0 && !generating && (
             <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3">
