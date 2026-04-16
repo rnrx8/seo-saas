@@ -7,6 +7,19 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
 
+function calcSimilarity(kw1, kw2) {
+  const t1 = kw1.toLowerCase().split(/\s+/).filter(Boolean)
+  const t2 = kw2.toLowerCase().split(/\s+/).filter(Boolean)
+  if (!t1.length || !t2.length) return 0
+  let matches = 0
+  for (const a of t1) {
+    for (const b of t2) {
+      if (a === b || a.includes(b) || b.includes(a)) { matches++; break }
+    }
+  }
+  return matches / Math.max(t1.length, t2.length)
+}
+
 const PLAN_LABELS = {
   free: 'フリープラン',
   standard: 'スタンダードプラン',
@@ -193,6 +206,9 @@ export default function DashboardPage() {
   if (!authChecked) return null
 
   const isPro = profile?.plan === 'pro'
+  const similarJobs = keyword.trim()
+    ? jobs.filter(j => j.status === 'done' && calcSimilarity(keyword.trim(), j.main_keyword) >= 0.5)
+    : []
   const creditsLabel = isPro
     ? '無制限'
     : profile
@@ -275,6 +291,19 @@ export default function DashboardPage() {
               </select>
             </div>
           </form>
+          {similarJobs.length > 0 && !generating && (
+            <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3">
+              <p className="text-sm font-medium text-yellow-800 mb-1">類似キーワードの記事があります（カニバリゼーションに注意）</p>
+              <ul className="flex flex-col gap-0.5 mb-1.5">
+                {similarJobs.map(j => (
+                  <li key={j.id} className="text-xs text-yellow-700">
+                    ・<button onClick={() => router.push(`/article/${j.id}`)} className="underline hover:text-yellow-900 transition-colors">{j.main_keyword}</button>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-yellow-600">内容が重複する可能性があります。このまま生成することもできます。</p>
+            </div>
+          )}
           {!isPro && profile?.credits_remaining <= 0 && !generating && (
             <p className="text-sm text-red-600 mt-3">
               クレジットが不足しています。
