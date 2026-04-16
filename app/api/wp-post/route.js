@@ -83,11 +83,16 @@ export async function POST(request) {
     })
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      return Response.json(
-        { error: err.message ?? `WordPress APIエラー（${res.status}）` },
-        { status: 500 }
-      )
+      const text = await res.text()
+      let errMsg
+      try {
+        const err = JSON.parse(text)
+        errMsg = err.message ?? `WordPress APIエラー（${res.status}）`
+      } catch {
+        // HTMLが返ってきた場合はステータスコードと先頭だけ返す
+        errMsg = `WordPress APIエラー（${res.status}）: ${text.slice(0, 200)}`
+      }
+      return Response.json({ error: errMsg }, { status: 500 })
     }
 
     const post = await res.json()
