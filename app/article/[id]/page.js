@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { use, useState, useEffect } from 'react'
+import { use, useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -140,6 +140,7 @@ export default function ArticlePage({ params }) {
                   onOpenPanel={() => setShowPanel(true)}
                   wpConfigured={wpConfigured}
                   jobId={id}
+                  onApplyReorder={(newMd) => setArtifacts(prev => ({ ...prev, article: newMd }))}
                 />
               )}
 
@@ -195,12 +196,13 @@ const VIEWS = [
   { key: 'html',     label: 'HTML' },
 ]
 
-function ArticleView({ markdown, onOpenPanel, wpConfigured, jobId }) {
+function ArticleView({ markdown, onOpenPanel, wpConfigured, jobId, onApplyReorder }) {
   const [view, setView] = useState('preview')
   const [copied, setCopied] = useState(false)
   const [wpPosting, setWpPosting] = useState(false)
   const [wpResult, setWpResult] = useState(null) // { edit_url } | null
   const [wpError, setWpError] = useState('')
+  const [showReorder, setShowReorder] = useState(false)
 
   const html = marked(markdown)
 
@@ -272,6 +274,13 @@ function ArticleView({ markdown, onOpenPanel, wpConfigured, jobId }) {
               {wpPosting ? '投稿中...' : 'WP投稿'}
             </button>
           )}
+          <button
+            onClick={() => setShowReorder(true)}
+            disabled={!markdown}
+            className="rounded border border-gray-300 bg-white px-3 py-1 text-sm text-gray-600 hover:border-gray-400 transition-colors disabled:opacity-40"
+          >
+            並び替え
+          </button>
           {onOpenPanel && (
             <button
               onClick={onOpenPanel}
@@ -309,6 +318,13 @@ function ArticleView({ markdown, onOpenPanel, wpConfigured, jobId }) {
         <pre className="bg-gray-50 p-4 rounded overflow-auto whitespace-pre-wrap text-sm text-gray-800">
           {html}
         </pre>
+      )}
+      {showReorder && (
+        <SectionReorderPanel
+          markdown={markdown}
+          onClose={() => setShowReorder(false)}
+          onApply={(newMd) => { onApplyReorder(newMd); setShowReorder(false) }}
+        />
       )}
     </div>
   )
@@ -618,6 +634,188 @@ function LlmoView({ markdown }) {
           </div>
         )}
       </section>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// SectionReorderPanel utilities
+// ─────────────────────────────────────────────
+
+function parseSections(markdown) {
+  const lines = markdown.split('\n')
+  let preambleLines = []
+  const h2List = []
+  let idSeq = 0
+  const uid = () => String(++idSeq)
+
+  let curH2 = null, curH3 = null, curH4 = null
+
+  const flushH4 = () => {
+    if (!curH4) return
+    if (curH3) curH3.children.push(curH4)
+    else if (curH2) curH2.children.push(curH4)
+    curH4 = null
+  }
+  const flushH3 = () => {
+    flushH4()
+    if (curH3 && curH2) { curH2.children.push(curH3); curH3 = null }
+  }
+  const flushH2 = () => {
+    flushH3()
+    if (curH2) { h2List.push(curH2); curH2 = null }
+  }
+
+  for (const line of lines) {
+    if (/^## [^#]/.test(line)) {
+      flushH2()
+      curH2 = { id: uid(), level: 2, heading: line.slice(3).trim(), body: [], children: [] }
+    } else if (/^### [^#]/.test(line)) {
+      flushH3()
+      if (curH2) curH3 = { id: uid(), level: 3, heading: line.slice(4).trim(), body: [], children: [] }
+    } else if (/^#### /.test(line)) {
+      flushH4()
+      const parent = curH3 ?? curH2
+      if (parent) curH4 = { id: uid(), level: 4, heading: line.slice(5).trim(), body: [], children: [] }
+    } else {
+      const target = curH4 ?? curH3 ?? curH2
+      if (target) target.body.push(line)
+      else preambleLines.push(line)
+    }
+  }
+  flushH2()
+
+  return { preamble: preambleLines.join('\n'), sections: h2List }
+}
+
+function sectionToLines(s) {
+  const prefix = '#'.repeat(s.level) + ' '
+  const lines = [prefix + s.heading, ...s.body]
+  for (const c of s.children) lines.push(...sectionToLines(c))
+  return lines
+}
+
+function sectionsToMarkdown(preamble, sections) {
+  const parts = preamble ? [preamble] : []
+  for (const s of sections) parts.push(sectionToLines(s).join('\n'))
+  return parts.join('\n')
+}
+
+function flattenSections(sections, result = []) {
+  for (const s of sections) { result.push(s); flattenSections(s.children, result) }
+  return result
+}
+
+function findInTree(sections, id) {
+  for (let i = 0; i < sections.length; i++) {
+    if (sections[i].id === id) return { siblings: sections, index: i }
+    const found = findInTree(sections[i].children, id)
+    if (found) return found
+  }
+  return null
+}
+
+function moveInTree(sections, id, dir) {
+  const next = JSON.parse(JSON.stringify(sections))
+  const found = findInTree(next, id)
+  if (!found) return sections
+  const { siblings, index } = found
+  const newIdx = dir === 'up' ? index - 1 : index + 1
+  if (newIdx < 0 || newIdx >= siblings.length) return sections
+  ;[siblings[index], siblings[newIdx]] = [siblings[newIdx], siblings[index]]
+  return next
+}
+
+// ─────────────────────────────────────────────
+// SectionReorderPanel
+// ─────────────────────────────────────────────
+
+function SectionReorderPanel({ markdown, onClose, onApply }) {
+  const { preamble, sections: initial } = useMemo(() => parseSections(markdown), [markdown])
+  const [sections, setSections] = useState(initial)
+  const [selectedId, setSelectedId] = useState(null)
+  const flatItems = useMemo(() => flattenSections(sections), [sections])
+
+  function move(id, dir) {
+    setSections(prev => moveInTree(prev, id, dir))
+  }
+
+  useEffect(() => {
+    if (!selectedId) return
+    function onKey(e) {
+      if (e.key === 'ArrowUp')   { e.preventDefault(); move(selectedId, 'up') }
+      if (e.key === 'ArrowDown') { e.preventDefault(); move(selectedId, 'down') }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selectedId, sections])
+
+  const LEVEL_LABEL = { 2: 'H2', 3: 'H3', 4: 'H4' }
+  const LEVEL_STYLE = {
+    2: 'font-semibold text-gray-800 text-sm',
+    3: 'text-gray-700 text-sm',
+    4: 'text-gray-500 text-xs',
+  }
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 flex flex-col"
+        style={{ maxHeight: '80vh' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <h2 className="font-semibold text-gray-800">セクション並び替え</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+        <p className="text-xs text-gray-500 px-6 pt-3 pb-1">クリックで選択 → ↑↓ボタンまたはキーボードで移動。H2を動かすと配下のH3/H4も一緒に移動します。</p>
+        <div className="overflow-y-auto flex-1 px-4 py-2 flex flex-col gap-0.5">
+          {flatItems.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-8">見出しが見つかりませんでした</p>
+          ) : flatItems.map(item => {
+            const found = findInTree(sections, item.id)
+            const isFirst = found?.index === 0
+            const isLast = found && found.index === found.siblings.length - 1
+            const selected = item.id === selectedId
+            return (
+              <div
+                key={item.id}
+                onClick={() => setSelectedId(item.id)}
+                style={{ paddingLeft: (item.level - 2) * 20 }}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${selected ? 'bg-blue-50 ring-1 ring-blue-400' : 'hover:bg-gray-50'}`}
+              >
+                <span className="text-xs text-gray-400 w-6 shrink-0">{LEVEL_LABEL[item.level]}</span>
+                <span className={`flex-1 truncate ${LEVEL_STYLE[item.level]}`}>{item.heading}</span>
+                <div className="flex gap-1 shrink-0">
+                  <button
+                    onClick={e => { e.stopPropagation(); move(item.id, 'up') }}
+                    disabled={isFirst}
+                    className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 text-gray-500 hover:bg-gray-100 disabled:opacity-25 disabled:cursor-not-allowed text-xs"
+                  >↑</button>
+                  <button
+                    onClick={e => { e.stopPropagation(); move(item.id, 'down') }}
+                    disabled={isLast}
+                    className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 text-gray-500 hover:bg-gray-100 disabled:opacity-25 disabled:cursor-not-allowed text-xs"
+                  >↓</button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+          >キャンセル</button>
+          <button
+            onClick={() => onApply(sectionsToMarkdown(preamble, sections))}
+            className="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+          >記事に適用</button>
+        </div>
+      </div>
     </div>
   )
 }

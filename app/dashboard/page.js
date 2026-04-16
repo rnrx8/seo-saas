@@ -32,6 +32,7 @@ export default function DashboardPage() {
   const [category, setCategory] = useState('')
   const [companyRestriction, setCompanyRestriction] = useState('category') // 'category'|'registered_only'|'ai'
   const [categorySetting, setCategorySetting] = useState(null) // 'registered_only'|'ai'|null
+  const [deliveryType, setDeliveryType] = useState('full') // 'full'|'outline_only'|'research_only'
   const [articlePurpose, setArticlePurpose] = useState('')
   const [articlePurposeOther, setArticlePurposeOther] = useState('')
   const [wordCountType, setWordCountType] = useState('absolute') // 'absolute'|'relative'
@@ -126,6 +127,7 @@ export default function DashboardPage() {
         category: category.trim() || null,
         tenant_id: user.id,
         company_restriction: resolvedRestriction,
+        delivery_type: deliveryType,
         article_purpose: resolvedPurpose,
         word_count_setting: resolvedWordCount,
         target_audience: targetAudience.trim() || null,
@@ -145,6 +147,7 @@ export default function DashboardPage() {
     setCategory('')
     setCompanyRestriction('category')
     setCategorySetting(null)
+    setDeliveryType('full')
     setArticlePurpose('')
     setArticlePurposeOther('')
     setWordCountValue('')
@@ -269,6 +272,28 @@ export default function DashboardPage() {
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">記事を生成する</h2>
           <form onSubmit={handleGenerate} className="flex flex-col gap-3">
+            {/* 納品物の選択 */}
+            <div className="flex gap-2">
+              {[
+                { value: 'full',          label: '記事まで生成' },
+                { value: 'outline_only',  label: '構成案まで' },
+                { value: 'research_only', label: '調査のみ' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setDeliveryType(opt.value)}
+                  disabled={generating}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50 ${
+                    deliveryType === opt.value
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
             <div className="flex gap-3">
               <input
                 type="text"
