@@ -65,7 +65,8 @@ export async function POST(request) {
 
   // WordPress REST API に投稿
   const wpBase = profile.wp_url.replace(/\/$/, '')
-  const credentials = Buffer.from(`${profile.wp_username}:${profile.wp_app_password}`).toString('base64')
+  const appPassword = profile.wp_app_password.replace(/\s/g, '')
+  const credentials = Buffer.from(`${profile.wp_username}:${appPassword}`).toString('base64')
 
   try {
     const res = await fetch(`${wpBase}/wp-json/wp/v2/posts`, {
