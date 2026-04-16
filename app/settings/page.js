@@ -54,6 +54,7 @@ export default function SettingsPage() {
   const [wpUrl, setWpUrl] = useState('')
   const [wpUsername, setWpUsername] = useState('')
   const [wpAppPassword, setWpAppPassword] = useState('')
+  const [wpAuthType, setWpAuthType] = useState('app_password')
   const [wpSaving, setWpSaving] = useState(false)
   const [wpSaveMsg, setWpSaveMsg] = useState('')
 
@@ -77,6 +78,7 @@ export default function SettingsPage() {
     setWpUrl(data?.wp_url ?? '')
     setWpUsername(data?.wp_username ?? '')
     setWpAppPassword(data?.wp_app_password ?? '')
+    setWpAuthType(data?.wp_auth_type ?? 'app_password')
     setLoading(false)
   }
 
@@ -85,7 +87,7 @@ export default function SettingsPage() {
     setWpSaveMsg('')
     const { error } = await getSupabase()
       .from('user_profiles')
-      .update({ wp_url: wpUrl.trim(), wp_username: wpUsername.trim(), wp_app_password: wpAppPassword.trim() })
+      .update({ wp_url: wpUrl.trim(), wp_username: wpUsername.trim(), wp_app_password: wpAppPassword.trim(), wp_auth_type: wpAuthType })
       .eq('id', profile.id)
     setWpSaving(false)
     setWpSaveMsg(error ? '保存に失敗しました' : '保存しました')
@@ -296,8 +298,33 @@ export default function SettingsPage() {
         {/* WordPress連携 */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-1">WordPress連携</h2>
-          <p className="text-xs text-gray-500 mb-4">設定するとWordPressへ記事を下書き投稿できます。「JWT Authentication for WP-API」プラグインが必要です。</p>
+          <p className="text-xs text-gray-500 mb-4">設定するとWordPressへ記事を下書き投稿できます。</p>
           <div className="flex flex-col gap-3">
+            {/* 認証方式 */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-2">認証方式</label>
+              <div className="flex flex-col gap-2">
+                {[
+                  { val: 'app_password', label: 'Application Password', desc: 'VPS・Kinsta・WP Engineなど多くの環境で利用可' },
+                  { val: 'jwt', label: 'JWT認証', desc: 'ロリポップなど一部の共有サーバー向け（JWT Authentication for WP-APIプラグインが必要）' },
+                ].map(opt => (
+                  <label key={opt.val} className={`flex items-start gap-3 border rounded-lg px-4 py-3 cursor-pointer transition-colors ${wpAuthType === opt.val ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input
+                      type="radio"
+                      name="wpAuthType"
+                      value={opt.val}
+                      checked={wpAuthType === opt.val}
+                      onChange={() => setWpAuthType(opt.val)}
+                      className="mt-0.5 accent-blue-600"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">{opt.label}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{opt.desc}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">サイトURL</label>
               <input
@@ -319,14 +346,19 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">パスワード</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {wpAuthType === 'app_password' ? 'Application Password' : 'パスワード'}
+              </label>
               <input
                 type="password"
                 value={wpAppPassword}
                 onChange={e => setWpAppPassword(e.target.value)}
-                placeholder="WordPressのログインパスワード"
+                placeholder={wpAuthType === 'app_password' ? 'xxxx xxxx xxxx xxxx xxxx xxxx' : 'WordPressのログインパスワード'}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              {wpAuthType === 'app_password' && (
+                <p className="text-xs text-gray-400 mt-1">WP管理画面 → ユーザー → プロフィール → アプリケーションパスワードで発行</p>
+              )}
             </div>
             <div className="flex items-center justify-end gap-3 mt-1">
               {wpSaveMsg && (

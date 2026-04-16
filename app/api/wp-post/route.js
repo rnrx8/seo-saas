@@ -26,7 +26,7 @@ export async function POST(request) {
   // WP設定を取得
   const { data: profile } = await supabase
     .from('user_profiles')
-    .select('wp_url, wp_username, wp_app_password')
+    .select('wp_url, wp_username, wp_app_password, wp_auth_type')
     .eq('id', user.id)
     .single()
 
@@ -65,23 +65,34 @@ export async function POST(request) {
 
   // WordPress REST API に投稿
   const wpBase = profile.wp_url.replace(/\/$/, '')
+  const authType = profile.wp_auth_type ?? 'app_password'
 
   try {
-    // JWTトークン取得
-    const tokenRes = await fetch(`${wpBase}/wp-json/jwt-auth/v1/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: profile.wp_username,
-        password: profile.wp_app_password,
-      }),
-    })
-    const tokenData = await tokenRes.json()
-    if (!tokenRes.ok || !tokenData.token) {
-      return Response.json(
-        { error: tokenData.message ?? 'WordPress認証に失敗しました' },
-        { status: 401 }
-      )
+    let authHeader
+
+    if (authType === 'jwt') {
+      // JWTトークン取得
+      const tokenRes = await fetch(`${wpBase}/wp-json/jwt-auth/v1/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: profile.wp_username,
+          password: profile.wp_app_password,
+        }),
+      })
+      const tokenData = await tokenRes.json()
+      if (!tokenRes.ok || !tokenData.token) {
+        return Response.json(
+          { error: tokenData.message ?? 'WordPress認証に失敗しました' },
+          { status: 401 }
+        )
+      }
+      authHeader = `Bearer ${tokenData.token}`
+    } else {
+      // Application Password（Basic認証）
+      const appPassword = profile.wp_app_password.replace(/\s/g, '')
+      const credentials = Buffer.from(`${profile.wp_username}:${appPassword}`).toString('base64')
+      authHeader = `Basic ${credentials}`
     }
 
     // 記事を投稿
@@ -89,7 +100,7 @@ export async function POST(request) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${tokenData.token}`,
+        Authorization: authHeader,
       },
       body: JSON.stringify({
         title,
