@@ -60,7 +60,7 @@ export default function ArticlePage({ params }) {
       .from('artifacts')
       .select('step, content_text')
       .eq('job_id', id)
-      .in('step', ['article', 'search_intent', 'outline', 'fact_sheet', 'serp'])
+      .in('step', ['article', 'search_intent', 'outline', 'fact_sheet', 'serp', 'query_attrs'])
 
     if (error || !data) {
       setError('データが見つかりませんでした')
@@ -166,7 +166,7 @@ export default function ArticlePage({ params }) {
               )}
 
               {activeTab === 'serp' && (
-                <SerpView content={artifacts['serp']} />
+                <SerpView content={artifacts['serp']} queryAttrs={artifacts['query_attrs']} />
               )}
 
               {activeTab === 'llmo' && (
@@ -408,7 +408,80 @@ function HeadingsList({ headings, fetchStatus }) {
   )
 }
 
-function SerpView({ content }) {
+function QueryAttrsCard({ content }) {
+  if (!content) return null
+  let attrs = null
+  try { attrs = JSON.parse(content) } catch { return null }
+  if (!attrs) return null
+
+  const STAGE_COLOR = {
+    '情報収集': 'bg-blue-100 text-blue-800',
+    '比較検討': 'bg-yellow-100 text-yellow-800',
+    '購入・申込直前': 'bg-green-100 text-green-800',
+    '複数混在': 'bg-purple-100 text-purple-800',
+  }
+  const COMPETITION_COLOR = {
+    '高': 'bg-red-100 text-red-800',
+    '中': 'bg-yellow-100 text-yellow-800',
+    '低': 'bg-green-100 text-green-800',
+  }
+
+  return (
+    <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-6">
+      <h3 className="text-sm font-semibold text-blue-800 mb-3">クエリ属性分析</h3>
+      <div className="grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <p className="text-xs text-gray-500 mb-1">性別傾向</p>
+          <p className="font-medium text-gray-800">{attrs.gender_tendency ?? '—'}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500 mb-1">推定年齢層</p>
+          <p className="font-medium text-gray-800">{attrs.age_range ?? '—'}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500 mb-1">検索ステージ</p>
+          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLOR[attrs.searcher_stage] ?? 'bg-gray-100 text-gray-700'}`}>
+            {attrs.searcher_stage ?? '—'}
+          </span>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500 mb-1">競合レベル</p>
+          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${COMPETITION_COLOR[attrs.competition_level] ?? 'bg-gray-100 text-gray-700'}`}>
+            {attrs.competition_level ?? '—'}
+          </span>
+        </div>
+        {attrs.content_types?.length > 0 && (
+          <div className="col-span-2">
+            <p className="text-xs text-gray-500 mb-1">コンテンツタイプ傾向</p>
+            <div className="flex flex-wrap gap-1">
+              {attrs.content_types.map((t, i) => (
+                <span key={i} className="bg-white border border-gray-200 rounded-full px-2 py-0.5 text-xs text-gray-700">{t}</span>
+              ))}
+            </div>
+          </div>
+        )}
+        {attrs.key_concerns?.length > 0 && (
+          <div className="col-span-2">
+            <p className="text-xs text-gray-500 mb-1">読者の主な関心事</p>
+            <div className="flex flex-wrap gap-1">
+              {attrs.key_concerns.map((c, i) => (
+                <span key={i} className="bg-white border border-blue-200 rounded-full px-2 py-0.5 text-xs text-blue-700">{c}</span>
+              ))}
+            </div>
+          </div>
+        )}
+        {attrs.notes && (
+          <div className="col-span-2">
+            <p className="text-xs text-gray-500 mb-1">特記事項</p>
+            <p className="text-xs text-gray-700">{attrs.notes}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SerpView({ content, queryAttrs }) {
   if (!content) return <p className="text-gray-400 text-sm">（データなし）</p>
 
   let organicResults = null
@@ -433,6 +506,7 @@ function SerpView({ content }) {
 
   return (
     <div className="flex flex-col gap-4">
+      <QueryAttrsCard content={queryAttrs} />
       {organicResults.map((item, i) => {
         const url = item.link ?? item.url ?? ''
         const heading = headingsMap[url]

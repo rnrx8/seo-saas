@@ -32,6 +32,12 @@ export default function DashboardPage() {
   const [category, setCategory] = useState('')
   const [companyRestriction, setCompanyRestriction] = useState('category') // 'category'|'registered_only'|'ai'
   const [categorySetting, setCategorySetting] = useState(null) // 'registered_only'|'ai'|null
+  const [articlePurpose, setArticlePurpose] = useState('')
+  const [articlePurposeOther, setArticlePurposeOther] = useState('')
+  const [wordCountType, setWordCountType] = useState('absolute') // 'absolute'|'relative'
+  const [wordCountValue, setWordCountValue] = useState('')
+  const [targetAudience, setTargetAudience] = useState('')
+  const [customPrompt, setCustomPrompt] = useState('')
   const [jobs, setJobs] = useState([])
   const [profile, setProfile] = useState(null)
   const [generating, setGenerating] = useState(false)
@@ -107,6 +113,11 @@ export default function DashboardPage() {
       resolvedRestriction = categorySetting ?? 'ai'
     }
 
+    const resolvedPurpose = articlePurpose === 'other'
+      ? (articlePurposeOther.trim() || null)
+      : (articlePurpose || null)
+    const resolvedWordCount = wordCountValue || null
+
     const { data: job, error: insertError } = await supabase
       .from('jobs')
       .insert({
@@ -115,6 +126,10 @@ export default function DashboardPage() {
         category: category.trim() || null,
         tenant_id: user.id,
         company_restriction: resolvedRestriction,
+        article_purpose: resolvedPurpose,
+        word_count_setting: resolvedWordCount,
+        target_audience: targetAudience.trim() || null,
+        custom_prompt: customPrompt.trim() || null,
       })
       .select()
       .single()
@@ -130,6 +145,11 @@ export default function DashboardPage() {
     setCategory('')
     setCompanyRestriction('category')
     setCategorySetting(null)
+    setArticlePurpose('')
+    setArticlePurposeOther('')
+    setWordCountValue('')
+    setTargetAudience('')
+    setCustomPrompt('')
 
     // Next.js プロキシ経由で Railway API にリクエスト（30分タイムアウト）
     const controller = new AbortController()
@@ -290,6 +310,90 @@ export default function DashboardPage() {
                 <option value="ai">AIに任せる（強制）</option>
               </select>
             </div>
+            {/* 記事目的 */}
+            <div className="flex gap-3">
+              <select
+                value={articlePurpose}
+                onChange={(e) => setArticlePurpose(e.target.value)}
+                disabled={generating}
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700"
+              >
+                <option value="">記事目的（任意）</option>
+                <option value="inbound">誘導記事（SEO流入→回遊）</option>
+                <option value="cv">自社商品・サービスのCV</option>
+                <option value="line">LINE・メルマガ登録</option>
+                <option value="whitepaper">ホワイトペーパー・資料DL</option>
+                <option value="branding">ブランディング・認知拡大</option>
+                <option value="other">その他</option>
+              </select>
+              {articlePurpose === 'other' && (
+                <input
+                  type="text"
+                  value={articlePurposeOther}
+                  onChange={(e) => setArticlePurposeOther(e.target.value)}
+                  placeholder="記事目的を入力..."
+                  disabled={generating}
+                  className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
+                />
+              )}
+            </div>
+            {/* 文字数指定 */}
+            <div className="flex gap-3">
+              <select
+                value={wordCountType}
+                onChange={(e) => { setWordCountType(e.target.value); setWordCountValue('') }}
+                disabled={generating}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700"
+              >
+                <option value="absolute">絶対値</option>
+                <option value="relative">競合比（相対値）</option>
+              </select>
+              <select
+                value={wordCountValue}
+                onChange={(e) => setWordCountValue(e.target.value)}
+                disabled={generating}
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700"
+              >
+                <option value="">文字数指定（任意）</option>
+                {wordCountType === 'absolute' ? (
+                  <>
+                    <option value="〜3,000字">〜3,000字</option>
+                    <option value="3,000〜5,000字">3,000〜5,000字</option>
+                    <option value="5,000〜7,000字">5,000〜7,000字</option>
+                    <option value="7,000〜10,000字">7,000〜10,000字</option>
+                    <option value="10,000〜15,000字">10,000〜15,000字</option>
+                    <option value="15,000字〜">15,000字〜</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="競合平均-20%">競合平均 -20%</option>
+                    <option value="競合平均-10%">競合平均 -10%</option>
+                    <option value="競合平均±0%">競合平均 ±0%</option>
+                    <option value="競合平均+20%">競合平均 +20%</option>
+                    <option value="競合平均+50%">競合平均 +50%</option>
+                    <option value="競合平均+100%">競合平均 +100%</option>
+                  </>
+                )}
+              </select>
+            </div>
+            {/* ターゲット層 */}
+            <input
+              type="text"
+              value={targetAudience}
+              onChange={(e) => setTargetAudience(e.target.value)}
+              placeholder="ターゲット層（任意）例：30代会社員・副業初心者"
+              disabled={generating}
+              className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
+            />
+            {/* 自由記述プロンプト */}
+            <textarea
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder="追加指示（任意）例：競合他社Aには言及しない、体験談を多めに入れる"
+              disabled={generating}
+              rows={2}
+              className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 resize-none"
+            />
           </form>
           {similarJobs.length > 0 && !generating && (
             <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3">
