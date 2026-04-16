@@ -51,6 +51,11 @@ export default function SettingsPage() {
   const [deletePassword, setDeletePassword] = useState('')
   const [deletePasswordError, setDeletePasswordError] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [wpUrl, setWpUrl] = useState('')
+  const [wpUsername, setWpUsername] = useState('')
+  const [wpAppPassword, setWpAppPassword] = useState('')
+  const [wpSaving, setWpSaving] = useState(false)
+  const [wpSaveMsg, setWpSaveMsg] = useState('')
 
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
@@ -69,7 +74,22 @@ export default function SettingsPage() {
       .eq('id', userId)
       .single()
     setProfile(data)
+    setWpUrl(data?.wp_url ?? '')
+    setWpUsername(data?.wp_username ?? '')
+    setWpAppPassword(data?.wp_app_password ?? '')
     setLoading(false)
+  }
+
+  async function handleWpSave() {
+    setWpSaving(true)
+    setWpSaveMsg('')
+    const { error } = await getSupabase()
+      .from('user_profiles')
+      .update({ wp_url: wpUrl.trim(), wp_username: wpUsername.trim(), wp_app_password: wpAppPassword.trim() })
+      .eq('id', profile.id)
+    setWpSaving(false)
+    setWpSaveMsg(error ? '保存に失敗しました' : '保存しました')
+    setTimeout(() => setWpSaveMsg(''), 3000)
   }
 
   function handleUpgrade(planId) {
@@ -273,6 +293,56 @@ export default function SettingsPage() {
             })}
           </div>
         </section>
+        {/* WordPress連携 */}
+        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-1">WordPress連携</h2>
+          <p className="text-xs text-gray-500 mb-4">設定するとWordPressへ記事を下書き投稿できます。Application Passwordは管理画面→ユーザー→プロフィールで発行できます。</p>
+          <div className="flex flex-col gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">サイトURL</label>
+              <input
+                type="url"
+                value={wpUrl}
+                onChange={e => setWpUrl(e.target.value)}
+                placeholder="https://example.com"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">ユーザー名</label>
+              <input
+                type="text"
+                value={wpUsername}
+                onChange={e => setWpUsername(e.target.value)}
+                placeholder="admin"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Application Password</label>
+              <input
+                type="password"
+                value={wpAppPassword}
+                onChange={e => setWpAppPassword(e.target.value)}
+                placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3 mt-1">
+              {wpSaveMsg && (
+                <span className={`text-xs ${wpSaveMsg === '保存しました' ? 'text-green-600' : 'text-red-600'}`}>{wpSaveMsg}</span>
+              )}
+              <button
+                onClick={handleWpSave}
+                disabled={wpSaving}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {wpSaving ? '保存中...' : '保存'}
+              </button>
+            </div>
+          </div>
+        </section>
+
         {/* Data management */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">データ管理</h2>

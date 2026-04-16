@@ -42,6 +42,7 @@ export default function ArticlePage({ params }) {
   const [activeTab, setActiveTab] = useState('article')
   const [error, setError] = useState('')
   const [showPanel, setShowPanel] = useState(false)
+  const [wpConfigured, setWpConfigured] = useState(false)
 
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
@@ -50,6 +51,7 @@ export default function ArticlePage({ params }) {
         return
       }
       fetchArtifacts()
+      fetchWpConfig()
     })
   }, [id])
 
@@ -67,6 +69,17 @@ export default function ArticlePage({ params }) {
     const map = {}
     for (const row of data) map[row.step] = row.content_text
     setArtifacts(map)
+  }
+
+  async function fetchWpConfig() {
+    const { data: { session } } = await getSupabase().auth.getSession()
+    if (!session) return
+    const { data } = await getSupabase()
+      .from('user_profiles')
+      .select('wp_url, wp_username, wp_app_password')
+      .eq('id', session.user.id)
+      .single()
+    setWpConfigured(!!(data?.wp_url && data?.wp_username && data?.wp_app_password))
   }
 
   function handleApplyEdit(fullArticle) {
@@ -125,6 +138,8 @@ export default function ArticlePage({ params }) {
                 <ArticleView
                   markdown={artifacts['article'] ?? ''}
                   onOpenPanel={() => setShowPanel(true)}
+                  wpConfigured={wpConfigured}
+                  jobId={id}
                 />
               )}
 
@@ -180,9 +195,12 @@ const VIEWS = [
   { key: 'html',     label: 'HTML' },
 ]
 
-function ArticleView({ markdown, onOpenPanel }) {
+function ArticleView({ markdown, onOpenPanel, wpConfigured, jobId }) {
   const [view, setView] = useState('preview')
   const [copied, setCopied] = useState(false)
+  const [wpPosting, setWpPosting] = useState(false)
+  const [wpResult, setWpResult] = useState(null) // { edit_url } | null
+  const [wpError, setWpError] = useState('')
 
   const html = marked(markdown)
 
@@ -191,6 +209,32 @@ function ArticleView({ markdown, onOpenPanel }) {
     await navigator.clipboard.writeText(text)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function handleWpPost() {
+    setWpPosting(true)
+    setWpError('')
+    setWpResult(null)
+    try {
+      const { data: { session } } = await getSupabase().auth.getSession()
+      const res = await fetch('/api/wp-post', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ job_id: jobId }),
+      })
+      const data = await res.json()
+      if (data.error) {
+        setWpError(data.error)
+      } else {
+        setWpResult(data)
+      }
+    } catch {
+      setWpError('通信エラーが発生しました')
+    }
+    setWpPosting(false)
   }
 
   return (
@@ -219,6 +263,15 @@ function ArticleView({ markdown, onOpenPanel }) {
           >
             {copied ? 'コピーしました！' : 'コピー'}
           </button>
+          {wpConfigured && (
+            <button
+              onClick={handleWpPost}
+              disabled={wpPosting}
+              className="rounded border border-blue-300 bg-blue-50 px-3 py-1 text-sm text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-50"
+            >
+              {wpPosting ? '投稿中...' : 'WP投稿'}
+            </button>
+          )}
           {onOpenPanel && (
             <button
               onClick={onOpenPanel}
@@ -229,6 +282,17 @@ function ArticleView({ markdown, onOpenPanel }) {
           )}
         </div>
       </div>
+      {wpError && (
+        <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded px-3 py-2 mb-3">{wpError}</p>
+      )}
+      {wpResult && (
+        <p className="text-xs text-green-700 bg-green-50 border border-green-100 rounded px-3 py-2 mb-3">
+          下書き投稿しました。
+          <a href={wpResult.edit_url} target="_blank" rel="noopener noreferrer" className="underline ml-1">
+            WordPress編集画面を開く
+          </a>
+        </p>
+      )}
 
       {/* コンテンツ */}
       {view === 'preview' && (
