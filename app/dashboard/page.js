@@ -47,6 +47,7 @@ export default function DashboardPage() {
   const [jobs, setJobs] = useState([])
   const [profile, setProfile] = useState(null)
   const [generating, setGenerating] = useState(false)
+  const [currentStep, setCurrentStep] = useState(null)
   const [pollingId, setPollingId] = useState(null)
   const [authChecked, setAuthChecked] = useState(false)
   const [statusMessage, setStatusMessage] = useState(null) // { type: 'success'|'error', text: string }
@@ -238,14 +239,17 @@ export default function DashboardPage() {
     const id = setInterval(async () => {
       const { data } = await getSupabase()
         .from('jobs')
-        .select('status')
+        .select('status, current_step')
         .eq('id', job.id)
         .single()
+
+      if (data?.current_step !== undefined) setCurrentStep(data.current_step)
 
       if (data?.status === 'done') {
         clearInterval(id)
         setPollingId(null)
         setGenerating(false)
+        setCurrentStep(null)
         fetchJobs()
 
         // 完了後にクレジットを1消費
@@ -261,6 +265,7 @@ export default function DashboardPage() {
         clearInterval(id)
         setPollingId(null)
         setGenerating(false)
+        setCurrentStep(null)
         fetchJobs()
         setStatusMessage({ type: 'error', text: '生成に失敗しました' })
       }
@@ -286,6 +291,16 @@ export default function DashboardPage() {
   }
 
   if (!authChecked) return null
+
+  const STEPS = [
+    { key: 'serp',          label: '競合・SERP情報の取得' },
+    { key: 'search_intent', label: '検索意図の分析' },
+    { key: 'fact_sheet',    label: 'ファクトシートの作成' },
+    { key: 'outline',       label: '記事構成案の作成' },
+    { key: 'article',       label: '記事本文の執筆' },
+    { key: 'review',        label: '最終確認・レビュー' },
+  ]
+  const currentStepIndex = STEPS.findIndex(s => s.key === currentStep)
 
   const isPro = profile?.plan === 'pro'
   const similarJobs = keyword.trim()
@@ -554,10 +569,29 @@ export default function DashboardPage() {
             </p>
           )}
           {generating && (
-            <p className="text-sm text-blue-600 mt-3 flex items-center gap-2">
-              <span className="inline-block w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-              記事を生成しています。完了まで数分かかります...
-            </p>
+            <div className="mt-4 bg-blue-50 border border-blue-100 rounded-xl px-5 py-4">
+              <p className="text-xs font-medium text-blue-700 mb-3 flex items-center gap-2">
+                <span className="inline-block w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                生成中…完了まで数分かかります
+              </p>
+              <ol className="flex flex-col gap-1.5">
+                {STEPS.map((step, i) => {
+                  const isDone = currentStepIndex > i
+                  const isActive = currentStepIndex === i
+                  const isPending = currentStepIndex < i
+                  return (
+                    <li key={step.key} className="flex items-center gap-2 text-xs">
+                      {isDone && <span className="w-4 h-4 flex items-center justify-center rounded-full bg-green-500 text-white text-[10px] shrink-0">✓</span>}
+                      {isActive && <span className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin shrink-0" />}
+                      {isPending && <span className="w-4 h-4 rounded-full border border-gray-300 shrink-0" />}
+                      <span className={isDone ? 'text-green-600 line-through' : isActive ? 'text-blue-700 font-medium' : 'text-gray-400'}>
+                        {step.label}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ol>
+            </div>
           )}
           {statusMessage && !generating && (
             <p className={`text-sm mt-3 ${statusMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
