@@ -349,22 +349,25 @@ export default function DashboardPage() {
             {/* 納品物の選択 */}
             <div className="flex gap-2">
               {[
-                { value: 'full',          label: '記事まで生成' },
-                { value: 'outline_only',  label: '構成案まで' },
-                { value: 'research_only', label: '調査のみ' },
+                { value: 'full',          label: '記事まで生成', time: '約20分' },
+                { value: 'outline_only',  label: '構成案まで',   time: '約10分' },
+                { value: 'research_only', label: '調査のみ',     time: '約5分'  },
               ].map(opt => (
                 <button
                   key={opt.value}
                   type="button"
                   onClick={() => setDeliveryType(opt.value)}
                   disabled={generating}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50 ${
+                  className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50 flex flex-col items-center ${
                     deliveryType === opt.value
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
                   }`}
                 >
                   {opt.label}
+                  <span className={`text-[10px] font-normal mt-0.5 ${deliveryType === opt.value ? 'text-blue-200' : 'text-gray-400'}`}>
+                    {opt.time}
+                  </span>
                 </button>
               ))}
             </div>
