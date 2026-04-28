@@ -1,0 +1,808 @@
+'use client'
+
+import { use, useState, useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { marked } from 'marked'
+import { getSupabase } from '@/lib/supabase'
+import MainLayout from '@/app/_components/v2/MainLayout'
+
+const MD_COMPONENTS = {
+  h1:     ({ children }) => <h1 className="text-2xl font-bold mt-6 mb-3">{children}</h1>,
+  h2:     ({ children }) => <h2 className="text-xl font-bold mt-5 mb-2 border-b pb-1">{children}</h2>,
+  h3:     ({ children }) => <h3 className="text-lg font-semibold mt-4 mb-2">{children}</h3>,
+  h4:     ({ children }) => <h4 className="text-base font-semibold mt-3 mb-1">{children}</h4>,
+  p:      ({ children }) => <p className="mb-3 leading-relaxed">{children}</p>,
+  ul:     ({ children }) => <ul className="list-disc list-inside mb-3 space-y-1">{children}</ul>,
+  ol:     ({ children }) => <ol className="list-decimal list-inside mb-3 space-y-1">{children}</ol>,
+  li:     ({ children }) => <li className="ml-4">{children}</li>,
+  table:  ({ children }) => <table className="w-full border-collapse mb-4">{children}</table>,
+  th:     ({ children }) => <th className="border border-gray-300 bg-gray-100 px-3 py-2 text-left text-sm font-semibold">{children}</th>,
+  td:     ({ children }) => <td className="border border-gray-300 px-3 py-2 text-sm">{children}</td>,
+  strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+  code:   ({ children }) => <code className="bg-gray-100 px-1 rounded text-sm">{children}</code>,
+}
+
+const TABS = [
+  { key: 'article',       label: '記事' },
+  { key: 'search_intent', label: '検索意図' },
+  { key: 'outline',       label: '構成案' },
+  { key: 'fact_sheet',    label: 'ファクトシート' },
+  { key: 'paa_lsi',       label: 'PAA・LSI' },
+  { key: 'serp',          label: '競合情報' },
+]
+
+const VIEWS = [
+  { key: 'preview',  label: 'プレビュー' },
+  { key: 'markdown', label: 'Markdown' },
+  { key: 'html',     label: 'HTML' },
+]
+
+export default function NewArticlePage({ params }) {
+  const { id } = use(params)
+  const router = useRouter()
+  const [artifacts, setArtifacts] = useState({})
+  const [job, setJob] = useState(null)
+  const [activeTab, setActiveTab] = useState('article')
+  const [error, setError] = useState('')
+  const [showPanel, setShowPanel] = useState(false)
+  const [profile, setProfile] = useState(null)
+  const [theme, setTheme] = useState(null)
+
+  useEffect(() => {
+    getSupabase().auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        router.replace('/login')
+        return
+      }
+      fetchArtifacts()
+      fetchJob()
+      fetchProfile(session.user.id)
+      fetchTheme(session.user.id)
+    })
+  }, [id])
+
+  async function fetchArtifacts() {
+    const { data, error } = await getSupabase()
+      .from('artifacts')
+      .select('step, content_text')
+      .eq('job_id', id)
+      .in('step', ['article', 'search_intent', 'outline', 'fact_sheet', 'serp', 'query_attrs'])
+
+    if (error || !data) {
+      setError('データが見つかりませんでした')
+      return
+    }
+    const map = {}
+    for (const row of data) map[row.step] = row.content_text
+    setArtifacts(map)
+  }
+
+  async function fetchJob() {
+    const { data } = await getSupabase()
+      .from('jobs')
+      .select('id, main_keyword, category, status, created_at, delivery_type, word_count_setting')
+      .eq('id', id)
+      .single()
+    if (data) setJob(data)
+  }
+
+  async function fetchProfile(userId) {
+    const { data } = await getSupabase()
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+    if (data) setProfile(data)
+  }
+
+  async function fetchTheme(userId) {
+    const { data } = await getSupabase()
+      .from('tenant_themes')
+      .select('*')
+      .eq('tenant_id', userId)
+      .maybeSingle()
+    if (data) setTheme(data)
+  }
+
+  function handleApplyEdit(fullArticle) {
+    setArtifacts(prev => ({ ...prev, article: fullArticle }))
+    setShowPanel(false)
+  }
+
+  const isLoading = Object.keys(artifacts).length === 0 && !error
+
+  const articleText = artifacts['article'] ?? ''
+  const charCount = articleText.replace(/\s/g, '').length
+
+  const h2Count = useMemo(() => {
+    return (articleText.match(/^## [^#]/gm) ?? []).length
+  }, [articleText])
+
+  return (
+    <MainLayout profile={profile} theme={theme}>
+      <div className="flex h-full">
+        {/* Main content area */}
+        <div className="flex-1 min-w-0 overflow-y-auto">
+          {/* Page header */}
+          <div className="px-8 py-6 border-b border-gray-100 bg-white sticky top-0 z-10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => router.push('/dashboard')}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+                    <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                <div>
+                  <h1 className="text-lg font-bold text-gray-900">記事詳細</h1>
+                  {job?.main_keyword && (
+                    <p className="text-xs text-gray-400 mt-0.5">{job.main_keyword}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="bg-white border-b border-gray-100 px-8">
+            <div className="flex gap-0">
+              {TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`px-5 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                    activeTab === tab.key
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Tab content */}
+          <div className="px-8 py-6">
+            {error ? (
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-6 text-sm">{error}</div>
+            ) : isLoading ? (
+              <div className="flex justify-center py-20">
+                <span className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <>
+                {activeTab === 'article' && (
+                  <ArticleView
+                    markdown={articleText}
+                    onOpenPanel={() => setShowPanel(true)}
+                    onApplyReorder={(newMd) => setArtifacts(prev => ({ ...prev, article: newMd }))}
+                  />
+                )}
+                {activeTab === 'search_intent' && (
+                  <article className="max-w-none prose">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
+                      {artifacts['search_intent'] ?? '（データなし）'}
+                    </ReactMarkdown>
+                  </article>
+                )}
+                {activeTab === 'outline' && (
+                  <article className="max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
+                      {artifacts['outline'] ?? '（データなし）'}
+                    </ReactMarkdown>
+                  </article>
+                )}
+                {activeTab === 'fact_sheet' && (
+                  <article className="max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
+                      {artifacts['fact_sheet'] ?? 'ファクトシートがありません'}
+                    </ReactMarkdown>
+                  </article>
+                )}
+                {activeTab === 'paa_lsi' && (
+                  <PaaLsiView content={artifacts['serp']} />
+                )}
+                {activeTab === 'serp' && (
+                  <SerpView content={artifacts['serp']} queryAttrs={artifacts['query_attrs']} />
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Right sidebar: 記事情報 */}
+        <aside className="w-72 flex-shrink-0 border-l border-gray-100 bg-white overflow-y-auto">
+          <div className="p-5">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">記事情報</h3>
+            <div className="flex flex-col gap-4">
+              {/* Stats */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400 mb-1">文字数</p>
+                  <p className="text-lg font-bold text-gray-800">{charCount.toLocaleString()}</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400 mb-1">H2見出し</p>
+                  <p className="text-lg font-bold text-gray-800">{h2Count}</p>
+                </div>
+              </div>
+
+              {/* Job info */}
+              {job && (
+                <div className="flex flex-col gap-2.5">
+                  <InfoRow label="キーワード" value={job.main_keyword} />
+                  {job.category && <InfoRow label="カテゴリ" value={job.category} />}
+                  <InfoRow label="作成日時" value={new Date(job.created_at).toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} />
+                  {job.delivery_type && (
+                    <InfoRow
+                      label="納品形式"
+                      value={{ full: '記事まで', outline_only: '構成案まで', research_only: '調査のみ' }[job.delivery_type] ?? job.delivery_type}
+                    />
+                  )}
+                  {job.word_count_setting && <InfoRow label="文字数設定" value={job.word_count_setting} />}
+                </div>
+              )}
+
+              <div className="border-t border-gray-100 pt-3">
+                <p className="text-xs font-medium text-gray-500 mb-2">アクション</p>
+                <button
+                  onClick={() => setShowPanel(true)}
+                  className="w-full flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" />
+                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" />
+                  </svg>
+                  編集アシスト
+                </button>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <EditAssistPanel
+        open={showPanel}
+        onClose={() => setShowPanel(false)}
+        jobId={id}
+        articleText={artifacts['article'] ?? ''}
+        intentText={artifacts['search_intent'] ?? ''}
+        onApply={handleApplyEdit}
+      />
+    </MainLayout>
+  )
+}
+
+function InfoRow({ label, value }) {
+  return (
+    <div>
+      <p className="text-xs text-gray-400 mb-0.5">{label}</p>
+      <p className="text-sm text-gray-700 break-all">{value}</p>
+    </div>
+  )
+}
+
+function ArticleView({ markdown, onOpenPanel, onApplyReorder }) {
+  const [view, setView] = useState('preview')
+  const [copied, setCopied] = useState(false)
+  const [showReorder, setShowReorder] = useState(false)
+
+  const html = marked(markdown)
+
+  async function handleCopy() {
+    const text = view === 'html' ? html : markdown
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          {VIEWS.map((v) => (
+            <button
+              key={v.key}
+              onClick={() => setView(v.key)}
+              className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+                view === v.key
+                  ? 'bg-white text-gray-800 shadow-sm font-medium'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleCopy}
+            className="flex items-center gap-1.5 border border-gray-200 bg-white px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:border-gray-300 transition-colors"
+          >
+            {copied ? (
+              <>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 text-green-600">
+                  <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                コピーしました
+              </>
+            ) : (
+              <>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+                  <rect x="9" y="9" width="13" height="13" rx="2" />
+                  <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                </svg>
+                コピー
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {view === 'preview' && (
+        <article className="max-w-none">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{markdown}</ReactMarkdown>
+        </article>
+      )}
+      {view === 'markdown' && (
+        <pre className="bg-gray-50 border border-gray-100 p-4 rounded-xl overflow-auto whitespace-pre-wrap text-sm text-gray-800">
+          {markdown}
+        </pre>
+      )}
+      {view === 'html' && (
+        <pre className="bg-gray-50 border border-gray-100 p-4 rounded-xl overflow-auto whitespace-pre-wrap text-sm text-gray-800">
+          {html}
+        </pre>
+      )}
+      {showReorder && (
+        <SectionReorderPanel
+          markdown={markdown}
+          onClose={() => setShowReorder(false)}
+          onApply={(newMd) => { onApplyReorder(newMd); setShowReorder(false) }}
+        />
+      )}
+    </div>
+  )
+}
+
+function PaaLsiView({ content }) {
+  let paa = []
+  let related = []
+
+  if (content) {
+    try {
+      const parsed = JSON.parse(content)
+      paa     = parsed.people_also_ask  ?? []
+      related = parsed.related_searches ?? []
+    } catch {}
+  }
+
+  return (
+    <div className="flex flex-col gap-8">
+      <section>
+        <h2 className="text-base font-semibold text-gray-800 mb-3">よくある質問（PAA）</h2>
+        {paa.length === 0 ? (
+          <p className="text-gray-400 text-sm">取得できませんでした</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {paa.map((item, i) => (
+              <div key={i} className="border border-gray-100 rounded-xl p-4 bg-gray-50">
+                <p className="font-medium text-gray-800 text-sm mb-1">Q. {item.question}</p>
+                {item.snippet && <p className="text-gray-600 text-sm leading-relaxed">{item.snippet}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h2 className="text-base font-semibold text-gray-800 mb-3">関連キーワード（LSI候補）</h2>
+        {related.length === 0 ? (
+          <p className="text-gray-400 text-sm">取得できませんでした</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {related.map((kw, i) => (
+              <span key={i} className="rounded-full bg-blue-50 text-blue-700 px-3 py-1 text-sm border border-blue-100">{kw}</span>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
+function QueryAttrsCard({ content }) {
+  if (!content) return null
+  let attrs = null
+  try { attrs = JSON.parse(content) } catch { return null }
+  if (!attrs) return null
+
+  const STAGE_COLOR = {
+    '情報収集': 'bg-blue-100 text-blue-800',
+    '比較検討': 'bg-yellow-100 text-yellow-800',
+    '購入・申込直前': 'bg-green-100 text-green-800',
+    '複数混在': 'bg-purple-100 text-purple-800',
+  }
+  const COMPETITION_COLOR = {
+    '高': 'bg-red-100 text-red-800',
+    '中': 'bg-yellow-100 text-yellow-800',
+    '低': 'bg-green-100 text-green-800',
+  }
+
+  return (
+    <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-6">
+      <h3 className="text-sm font-semibold text-blue-800 mb-3">クエリ属性分析</h3>
+      <div className="grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <p className="text-xs text-gray-500 mb-1">性別傾向</p>
+          <p className="font-medium text-gray-800">{attrs.gender_tendency ?? '—'}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500 mb-1">推定年齢層</p>
+          <p className="font-medium text-gray-800">{attrs.age_range ?? '—'}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500 mb-1">検索ステージ</p>
+          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLOR[attrs.searcher_stage] ?? 'bg-gray-100 text-gray-700'}`}>
+            {attrs.searcher_stage ?? '—'}
+          </span>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500 mb-1">競合レベル</p>
+          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${COMPETITION_COLOR[attrs.competition_level] ?? 'bg-gray-100 text-gray-700'}`}>
+            {attrs.competition_level ?? '—'}
+          </span>
+        </div>
+        {attrs.content_types?.length > 0 && (
+          <div className="col-span-2">
+            <p className="text-xs text-gray-500 mb-1">コンテンツタイプ傾向</p>
+            <div className="flex flex-wrap gap-1">
+              {attrs.content_types.map((t, i) => (
+                <span key={i} className="bg-white border border-gray-200 rounded-full px-2 py-0.5 text-xs text-gray-700">{t}</span>
+              ))}
+            </div>
+          </div>
+        )}
+        {attrs.key_concerns?.length > 0 && (
+          <div className="col-span-2">
+            <p className="text-xs text-gray-500 mb-1">読者の主な関心事</p>
+            <div className="flex flex-wrap gap-1">
+              {attrs.key_concerns.map((c, i) => (
+                <span key={i} className="bg-white border border-blue-200 rounded-full px-2 py-0.5 text-xs text-blue-700">{c}</span>
+              ))}
+            </div>
+          </div>
+        )}
+        {attrs.notes && (
+          <div className="col-span-2">
+            <p className="text-xs text-gray-500 mb-1">特記事項</p>
+            <p className="text-xs text-gray-700">{attrs.notes}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function HeadingsList({ headings, fetchStatus }) {
+  const [open, setOpen] = useState(false)
+  if (fetchStatus === 'failed') return <p className="text-gray-400 text-xs mt-2">見出しを取得できませんでした</p>
+  if (!headings || headings.length === 0) return null
+
+  return (
+    <div className="mt-2">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
+      >
+        {open ? '▲ 見出しを閉じる' : `▼ 見出しを表示（${headings.length}件）`}
+      </button>
+      {open && (
+        <ul className="mt-2 flex flex-col gap-1">
+          {headings.map((h, i) => (
+            <li key={i} className={h.level === 'h2' ? 'text-sm font-semibold text-gray-700' : 'ml-4 text-sm text-gray-500'}>
+              <span className="text-gray-300 mr-1">{h.level === 'h2' ? 'H2' : 'H3'}</span>
+              {h.text}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function SerpView({ content, queryAttrs }) {
+  if (!content) return <p className="text-gray-400 text-sm">（データなし）</p>
+
+  let organicResults = null
+  let headingsMap = {}
+  try {
+    const parsed = JSON.parse(content)
+    if (Array.isArray(parsed)) {
+      organicResults = parsed
+    } else {
+      organicResults = parsed.organic_results ?? null
+      for (const h of (parsed.competitor_headings ?? [])) {
+        if (h?.url) headingsMap[h.url] = h
+      }
+    }
+  } catch {
+    return <pre className="text-sm text-gray-700 whitespace-pre-wrap">{content}</pre>
+  }
+
+  if (!organicResults) return <pre className="text-sm text-gray-700 whitespace-pre-wrap">{content}</pre>
+
+  return (
+    <div className="flex flex-col gap-4">
+      <QueryAttrsCard content={queryAttrs} />
+      {organicResults.map((item, i) => {
+        const url = item.link ?? item.url ?? ''
+        const heading = headingsMap[url]
+        return (
+          <div key={i} className="border border-gray-100 rounded-xl p-4 bg-white">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-green-700 truncate mb-1">{url}</p>
+                <a href={url || '#'} target="_blank" rel="noopener noreferrer" className="text-blue-700 font-medium text-sm hover:underline">
+                  {item.title ?? '（タイトルなし）'}
+                </a>
+                {item.snippet && <p className="text-gray-600 text-sm mt-1 leading-relaxed">{item.snippet}</p>}
+                {heading && <HeadingsList headings={heading.headings} fetchStatus={heading.fetch_status} />}
+              </div>
+              <span className="text-xs text-gray-400 shrink-0">#{i + 1}</span>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── SectionReorderPanel ──────────────────────────────────────────────────────
+
+function parseSections(markdown) {
+  const lines = markdown.split('\n')
+  let preambleLines = []
+  const h2List = []
+  let idSeq = 0
+  const uid = () => String(++idSeq)
+  let curH2 = null, curH3 = null, curH4 = null
+  const flushH4 = () => { if (!curH4) return; if (curH3) curH3.children.push(curH4); else if (curH2) curH2.children.push(curH4); curH4 = null }
+  const flushH3 = () => { flushH4(); if (curH3 && curH2) { curH2.children.push(curH3); curH3 = null } }
+  const flushH2 = () => { flushH3(); if (curH2) { h2List.push(curH2); curH2 = null } }
+
+  for (const line of lines) {
+    if (/^## [^#]/.test(line))       { flushH2(); curH2 = { id: uid(), level: 2, heading: line.slice(3).trim(), body: [], children: [] } }
+    else if (/^### [^#]/.test(line)) { flushH3(); if (curH2) curH3 = { id: uid(), level: 3, heading: line.slice(4).trim(), body: [], children: [] } }
+    else if (/^#### /.test(line))    { flushH4(); const p = curH3 ?? curH2; if (p) curH4 = { id: uid(), level: 4, heading: line.slice(5).trim(), body: [], children: [] } }
+    else { const t = curH4 ?? curH3 ?? curH2; if (t) t.body.push(line); else preambleLines.push(line) }
+  }
+  flushH2()
+  return { preamble: preambleLines.join('\n'), sections: h2List }
+}
+
+function sectionToLines(s) {
+  const lines = ['#'.repeat(s.level) + ' ' + s.heading, ...s.body]
+  for (const c of s.children) lines.push(...sectionToLines(c))
+  return lines
+}
+
+function sectionsToMarkdown(preamble, sections) {
+  const parts = preamble ? [preamble] : []
+  for (const s of sections) parts.push(sectionToLines(s).join('\n'))
+  return parts.join('\n')
+}
+
+function flattenSections(sections, result = []) {
+  for (const s of sections) { result.push(s); flattenSections(s.children, result) }
+  return result
+}
+
+function findInTree(sections, id) {
+  for (let i = 0; i < sections.length; i++) {
+    if (sections[i].id === id) return { siblings: sections, index: i }
+    const found = findInTree(sections[i].children, id)
+    if (found) return found
+  }
+  return null
+}
+
+function moveInTree(sections, id, dir) {
+  const next = JSON.parse(JSON.stringify(sections))
+  const found = findInTree(next, id)
+  if (!found) return sections
+  const { siblings, index } = found
+  const newIdx = dir === 'up' ? index - 1 : index + 1
+  if (newIdx < 0 || newIdx >= siblings.length) return sections
+  ;[siblings[index], siblings[newIdx]] = [siblings[newIdx], siblings[index]]
+  return next
+}
+
+function SectionReorderPanel({ markdown, onClose, onApply }) {
+  const { preamble, sections: initialSections } = useMemo(() => parseSections(markdown), [markdown])
+  const [sections, setSections] = useState(initialSections)
+  const [selectedId, setSelectedId] = useState(null)
+  const flat = useMemo(() => flattenSections(sections), [sections])
+
+  function move(dir) {
+    if (!selectedId) return
+    setSections(prev => moveInTree(prev, selectedId, dir))
+  }
+
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === 'ArrowUp')   { e.preventDefault(); move('up') }
+      if (e.key === 'ArrowDown') { e.preventDefault(); move('down') }
+      if (e.key === 'Escape')    { onClose() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selectedId, sections])
+
+  function handleApply() {
+    onApply(sectionsToMarkdown(preamble, sections))
+  }
+
+  const INDENT = { 2: 'ml-0', 3: 'ml-4', 4: 'ml-8' }
+  const LABEL_BG = { 2: 'bg-blue-100 text-blue-700', 3: 'bg-green-100 text-green-700', 4: 'bg-gray-100 text-gray-600' }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 flex flex-col max-h-[80vh]">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="font-semibold text-gray-800">セクション並び替え</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+              <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+        <p className="px-6 py-2 text-xs text-gray-400 border-b border-gray-50">クリックで選択 → ↑↓キーまたはボタンで移動</p>
+        <ul className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-1">
+          {flat.map((s) => {
+            const isSelected = s.id === selectedId
+            return (
+              <li key={s.id} className={INDENT[s.level] ?? 'ml-0'}>
+                <button
+                  onClick={() => setSelectedId(isSelected ? null : s.id)}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${
+                    isSelected ? 'bg-blue-600 text-white' : 'hover:bg-gray-50 text-gray-700'
+                  }`}
+                >
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isSelected ? 'bg-white/20 text-white' : LABEL_BG[s.level]}`}>
+                    H{s.level}
+                  </span>
+                  <span className="truncate">{s.heading}</span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+          <div className="flex gap-2">
+            <button
+              onClick={() => move('up')}
+              disabled={!selectedId}
+              className="border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-600 hover:border-gray-300 disabled:opacity-40 transition-colors"
+            >
+              ↑ 上へ
+            </button>
+            <button
+              onClick={() => move('down')}
+              disabled={!selectedId}
+              className="border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-600 hover:border-gray-300 disabled:opacity-40 transition-colors"
+            >
+              ↓ 下へ
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-600 hover:border-gray-300 transition-colors">
+              キャンセル
+            </button>
+            <button onClick={handleApply} className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors">
+              適用
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── EditAssistPanel ──────────────────────────────────────────────────────────
+
+function EditAssistPanel({ open, onClose, jobId, articleText, intentText, onApply }) {
+  const [instruction, setInstruction] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState('')
+  const [error, setError] = useState('')
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!instruction.trim() || loading) return
+    setLoading(true)
+    setError('')
+    setResult('')
+    try {
+      const { data: { session } } = await getSupabase().auth.getSession()
+      const res = await fetch('/api/edit-assist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ job_id: jobId, instruction: instruction.trim(), article_text: articleText, intent_text: intentText }),
+      })
+      const data = await res.json()
+      if (data.error) setError(data.error)
+      else setResult(data.result ?? '')
+    } catch {
+      setError('通信エラーが発生しました')
+    }
+    setLoading(false)
+  }
+
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex">
+      <div className="flex-1 bg-black/20" onClick={onClose} />
+      <div className="w-[480px] bg-white shadow-2xl flex flex-col h-full border-l border-gray-100">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="font-semibold text-gray-800">編集アシスト</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+              <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="px-6 py-4 border-b border-gray-100 flex gap-2">
+          <input
+            type="text"
+            value={instruction}
+            onChange={e => setInstruction(e.target.value)}
+            placeholder="編集指示を入力（例：リード文を書き直して）"
+            disabled={loading}
+            className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+          />
+          <button
+            type="submit"
+            disabled={loading || !instruction.trim()}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50 whitespace-nowrap"
+          >
+            {loading ? '処理中...' : '送信'}
+          </button>
+        </form>
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl p-3 mb-4">{error}</p>}
+          {result && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-gray-500">修正案</p>
+                <button
+                  onClick={() => onApply(result)}
+                  className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors font-medium"
+                >
+                  記事に適用
+                </button>
+              </div>
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                {result}
+              </div>
+            </div>
+          )}
+          {!result && !error && !loading && (
+            <p className="text-sm text-gray-400 text-center py-8">編集指示を入力して送信してください</p>
+          )}
+          {loading && (
+            <div className="flex justify-center py-8">
+              <span className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
