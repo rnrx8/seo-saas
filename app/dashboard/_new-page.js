@@ -15,6 +15,15 @@ const STEPS = [
   { key: 'review',        label: 'レビュー' },
 ]
 
+function calcSimilarity(kw1, kw2) {
+  const t1 = kw1.toLowerCase().split(/\s+/).filter(Boolean)
+  const t2 = kw2.toLowerCase().split(/\s+/).filter(Boolean)
+  if (!t1.length || !t2.length) return 0
+  let matches = 0
+  for (const a of t1) for (const b of t2) if (a === b || a.includes(b) || b.includes(a)) { matches++; break }
+  return matches / Math.max(t1.length, t2.length)
+}
+
 function StatusBadge({ status }) {
   const map = {
     queued:  { bg: '#fef9c3', color: '#854d0e', label: '待機中' },
@@ -32,52 +41,64 @@ function StatusBadge({ status }) {
 
 function StepProgress({ currentStep }) {
   const idx = STEPS.findIndex(s => s.key === currentStep)
+  if (idx < 0) return null
   return (
-    <div className="flex items-center gap-1 mt-1">
+    <div className="flex items-center gap-1 mt-1.5">
       {STEPS.map((s, i) => (
         <div
           key={s.key}
-          className="h-1 rounded-full flex-1"
-          style={{
-            backgroundColor: i < idx ? '#2563eb' : i === idx ? '#93c5fd' : '#e2e8f0',
-          }}
+          className="h-1 rounded-full flex-1 transition-all"
+          style={{ backgroundColor: i < idx ? '#2563eb' : i === idx ? '#93c5fd' : '#e2e8f0' }}
           title={s.label}
         />
       ))}
-      {currentStep && (
-        <span className="ml-1 text-[10px] text-blue-600 whitespace-nowrap">
-          {STEPS.find(s => s.key === currentStep)?.label}
-        </span>
-      )}
+      <span className="ml-1 text-[10px] text-blue-600 whitespace-nowrap flex-shrink-0">
+        {STEPS[idx].label}
+      </span>
     </div>
   )
 }
 
 function formatDate(str) {
   if (!str) return ''
-  const d = new Date(str)
-  return d.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
-
-function wordCount(text) {
-  if (!text) return 0
-  return text.replace(/\s/g, '').length
+  return new Date(str).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 export default function NewDashboardPage() {
   const router = useRouter()
+
+  // --- Form state ---
   const [keyword, setKeyword] = useState('')
   const [category, setCategory] = useState('')
+  const [companyRestriction, setCompanyRestriction] = useState('category')
+  const [categorySetting, setCategorySetting] = useState(null)
+  const [deliveryType, setDeliveryType] = useState('full')
+  const [articlePurpose, setArticlePurpose] = useState('')
+  const [articlePurposeOther, setArticlePurposeOther] = useState('')
+  const [wordCountType, setWordCountType] = useState('absolute')
+  const [wordCountValue, setWordCountValue] = useState('')
+  const [targetAudience, setTargetAudience] = useState('')
+  const [customPrompt, setCustomPrompt] = useState('')
+  const [mustReferenceUrls, setMustReferenceUrls] = useState('')
+  const [neverReferenceUrls, setNeverReferenceUrls] = useState('')
+  const [showUrlFields, setShowUrlFields] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [bulkMode, setBulkMode] = useState(false)
+  const [bulkKeywords, setBulkKeywords] = useState('')
+
+  // --- App state ---
   const [jobs, setJobs] = useState([])
   const [profile, setProfile] = useState(null)
   const [theme, setTheme] = useState(null)
   const [generating, setGenerating] = useState(false)
-  const [statusMessage, setStatusMessage] = useState(null)
-  const [searchFilter, setSearchFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [authChecked, setAuthChecked] = useState(false)
   const [currentStep, setCurrentStep] = useState(null)
   const [pollingId, setPollingId] = useState(null)
+  const [statusMessage, setStatusMessage] = useState(null)
+  const [authChecked, setAuthChecked] = useState(false)
+
+  // --- Table filters ---
+  const [searchFilter, setSearchFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
 
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
@@ -92,27 +113,26 @@ export default function NewDashboardPage() {
     })
   }, [])
 
+  useEffect(() => () => { if (pollingId) clearInterval(pollingId) }, [pollingId])
+
   useEffect(() => {
-    return () => {
-      if (pollingId) clearInterval(pollingId)
-    }
-  }, [pollingId])
+    const trimmed = category.trim()
+    if (!trimmed) { setCategorySetting(null); return }
+    getSupabase()
+      .from('category_settings')
+      .select('company_restriction')
+      .eq('category', trimmed)
+      .maybeSingle()
+      .then(({ data }) => setCategorySetting(data?.company_restriction ?? null))
+  }, [category])
 
   const fetchProfile = useCallback(async (userId) => {
-    const { data } = await getSupabase()
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
+    const { data } = await getSupabase().from('user_profiles').select('*').eq('id', userId).single()
     if (data) setProfile(data)
   }, [])
 
   const fetchTheme = useCallback(async (userId) => {
-    const { data } = await getSupabase()
-      .from('tenant_themes')
-      .select('*')
-      .eq('tenant_id', userId)
-      .maybeSingle()
+    const { data } = await getSupabase().from('tenant_themes').select('*').eq('tenant_id', userId).maybeSingle()
     if (data) setTheme(data)
   }, [])
 
@@ -124,12 +144,59 @@ export default function NewDashboardPage() {
     if (!error && data) setJobs(data)
   }, [])
 
+  function resolveJobParams(kw) {
+    const resolvedRestriction = companyRestriction === 'category' ? (categorySetting ?? 'ai') : companyRestriction
+    const resolvedPurpose = articlePurpose === 'other' ? (articlePurposeOther.trim() || null) : (articlePurpose || null)
+    return {
+      main_keyword: kw,
+      status: 'queued',
+      category: category.trim() || null,
+      company_restriction: resolvedRestriction,
+      delivery_type: deliveryType,
+      article_purpose: resolvedPurpose,
+      word_count_setting: wordCountValue || null,
+      target_audience: targetAudience.trim() || null,
+      custom_prompt: customPrompt.trim() || null,
+      must_reference_urls: mustReferenceUrls.trim() || null,
+      never_reference_urls: neverReferenceUrls.trim() || null,
+    }
+  }
+
+  async function handleBulkGenerate(e) {
+    e.preventDefault()
+    const keywords = bulkKeywords.split('\n').map(k => k.trim()).filter(Boolean)
+    if (!keywords.length || generating) return
+
+    setGenerating(true)
+    setStatusMessage(null)
+    const supabase = getSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    let successCount = 0
+    for (let i = 0; i < keywords.length; i++) {
+      setStatusMessage({ type: 'info', text: `登録中… (${i + 1}/${keywords.length}) ${keywords[i]}` })
+      const { data: job, error } = await supabase
+        .from('jobs')
+        .insert({ ...resolveJobParams(keywords[i]), tenant_id: user.id })
+        .select().single()
+      if (!error && job) {
+        fetch('/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ job_id: job.id, keyword: job.main_keyword }) }).catch(() => {})
+        successCount++
+      }
+      if (i < keywords.length - 1) await new Promise(r => setTimeout(r, 300))
+    }
+    await fetchJobs()
+    setBulkKeywords('')
+    setGenerating(false)
+    setStatusMessage({ type: 'success', text: `${successCount}件を登録しました。バックグラウンドで生成が開始されます。` })
+  }
+
   async function handleGenerate(e) {
     e.preventDefault()
     if (!keyword.trim() || generating) return
 
     if (profile?.plan !== 'pro' && profile?.credits_remaining <= 0) {
-      setStatusMessage({ type: 'error', text: 'クレジットが不足しています。' })
+      setStatusMessage({ type: 'error', text: 'クレジットが不足しています。設定ページからプランをアップグレードしてください。' })
       return
     }
 
@@ -141,30 +208,20 @@ export default function NewDashboardPage() {
 
     const { data: job, error: insertError } = await supabase
       .from('jobs')
-      .insert({
-        main_keyword: keyword.trim(),
-        status: 'queued',
-        category: category.trim() || null,
-        tenant_id: user.id,
-        company_restriction: 'ai',
-        delivery_type: 'full',
-      })
-      .select()
-      .single()
+      .insert({ ...resolveJobParams(keyword.trim()), tenant_id: user.id })
+      .select().single()
 
     if (insertError || !job) {
-      setStatusMessage({ type: 'error', text: 'ジョブの作成に失敗しました' })
+      setStatusMessage({ type: 'error', text: 'ジョブの作成に失敗しました: ' + (insertError?.message ?? '') })
       setGenerating(false)
       return
     }
 
     await fetchJobs()
     setKeyword('')
-    setCategory('')
 
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 30 * 60 * 1000)
-
     try {
       await fetch('/api/generate', {
         method: 'POST',
@@ -183,34 +240,17 @@ export default function NewDashboardPage() {
     clearTimeout(timeoutId)
 
     const id = setInterval(async () => {
-      const { data } = await getSupabase()
-        .from('jobs')
-        .select('status, current_step')
-        .eq('id', job.id)
-        .single()
-
+      const { data } = await getSupabase().from('jobs').select('status, current_step').eq('id', job.id).single()
       if (data?.current_step !== undefined) setCurrentStep(data.current_step)
-
       if (data?.status === 'done') {
-        clearInterval(id)
-        setPollingId(null)
-        setGenerating(false)
-        setCurrentStep(null)
-        fetchJobs()
+        clearInterval(id); setPollingId(null); setGenerating(false); setCurrentStep(null); fetchJobs()
         if (profile?.plan !== 'pro') {
-          await getSupabase()
-            .from('user_profiles')
-            .update({ credits_remaining: profile.credits_remaining - 1 })
-            .eq('id', profile.id)
+          await getSupabase().from('user_profiles').update({ credits_remaining: profile.credits_remaining - 1 }).eq('id', profile.id)
           await fetchProfile(profile.id)
         }
         setStatusMessage({ type: 'success', text: '生成完了！' })
       } else if (data?.status === 'failed') {
-        clearInterval(id)
-        setPollingId(null)
-        setGenerating(false)
-        setCurrentStep(null)
-        fetchJobs()
+        clearInterval(id); setPollingId(null); setGenerating(false); setCurrentStep(null); fetchJobs()
         setStatusMessage({ type: 'error', text: '生成に失敗しました' })
       }
     }, 5000)
@@ -219,14 +259,18 @@ export default function NewDashboardPage() {
 
   if (!authChecked) return null
 
+  const isPro = profile?.plan === 'pro'
+  const creditsRemaining = profile?.credits_remaining ?? 0
+
+  const similarJobs = keyword.trim()
+    ? jobs.filter(j => j.status === 'done' && calcSimilarity(keyword.trim(), j.main_keyword) >= 0.5)
+    : []
+
   const filteredJobs = jobs.filter(j => {
     const matchSearch = !searchFilter || j.main_keyword?.toLowerCase().includes(searchFilter.toLowerCase())
     const matchStatus = statusFilter === 'all' || j.status === statusFilter
     return matchSearch && matchStatus
   })
-
-  const isPro = profile?.plan === 'pro'
-  const creditsRemaining = profile?.credits_remaining ?? 0
 
   return (
     <MainLayout profile={profile} theme={theme}>
@@ -240,7 +284,7 @@ export default function NewDashboardPage() {
         {/* Generate form card */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-6 h-6 rounded-md bg-blue-600 flex items-center justify-center">
+            <div className="w-6 h-6 rounded-md bg-blue-600 flex items-center justify-center flex-shrink-0">
               <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5} className="w-3.5 h-3.5">
                 <path d="M12 5v14M5 12h14" strokeLinecap="round" />
               </svg>
@@ -248,72 +292,297 @@ export default function NewDashboardPage() {
             <h2 className="font-semibold text-gray-800">新規記事生成</h2>
           </div>
 
-          <form onSubmit={handleGenerate} className="flex flex-col gap-3">
+          <form onSubmit={bulkMode ? handleBulkGenerate : handleGenerate} className="flex flex-col gap-3">
+
+            {/* 納品物選択 */}
+            <div className="flex gap-2">
+              {[
+                { value: 'full',          label: '記事まで生成', time: '約20分' },
+                { value: 'outline_only',  label: '構成案まで',   time: '約10分' },
+                { value: 'research_only', label: '調査のみ',     time: '約5分'  },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setDeliveryType(opt.value)}
+                  disabled={generating}
+                  className={`px-3 py-2 rounded-xl text-sm font-medium border transition-colors disabled:opacity-50 flex flex-col items-center ${
+                    deliveryType === opt.value
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  {opt.label}
+                  <span className={`text-[10px] font-normal mt-0.5 ${deliveryType === opt.value ? 'text-blue-200' : 'text-gray-400'}`}>
+                    {opt.time}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* 単体 / 一括 */}
+            <div className="flex items-center gap-3">
+              <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
+                {[{ v: false, label: '単体' }, { v: true, label: '一括' }].map(opt => (
+                  <button
+                    key={String(opt.v)}
+                    type="button"
+                    onClick={() => setBulkMode(opt.v)}
+                    disabled={generating}
+                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors disabled:opacity-50 ${
+                      bulkMode === opt.v ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              {bulkMode && <span className="text-xs text-gray-400">1行1キーワード</span>}
+            </div>
+
+            {/* キーワード入力 */}
             <div className="flex gap-3">
-              <input
-                type="text"
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                placeholder="メインキーワードを入力（例：転職エージェント おすすめ 30代）"
-                disabled={generating}
-                className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 bg-gray-50"
-              />
-              <input
-                type="text"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="カテゴリ（任意）"
-                disabled={generating}
-                className="w-44 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 bg-gray-50"
-              />
+              {bulkMode ? (
+                <textarea
+                  value={bulkKeywords}
+                  onChange={e => setBulkKeywords(e.target.value)}
+                  placeholder={"保険 30代 おすすめ\nクレジットカード 比較\n転職 エージェント おすすめ"}
+                  disabled={generating}
+                  rows={4}
+                  className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50 resize-none"
+                />
+              ) : (
+                <input
+                  type="text"
+                  value={keyword}
+                  onChange={e => setKeyword(e.target.value)}
+                  placeholder="メインキーワードを入力（例：転職エージェント おすすめ 30代）"
+                  disabled={generating}
+                  className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50"
+                />
+              )}
               <button
                 type="submit"
-                disabled={generating || !keyword.trim() || (!isPro && creditsRemaining <= 0)}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-xl text-sm transition-colors disabled:opacity-50 whitespace-nowrap"
+                disabled={generating || (bulkMode ? !bulkKeywords.trim() : (!keyword.trim() || (!isPro && creditsRemaining <= 0)))}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-xl text-sm transition-colors disabled:opacity-50 whitespace-nowrap self-start"
               >
-                {generating ? '生成中...' : '記事生成'}
+                {generating ? (bulkMode ? '登録中...' : '生成中...') : (bulkMode ? '一括登録' : '記事生成')}
               </button>
             </div>
 
-            {generating && currentStep && (
-              <div className="flex flex-col gap-1">
-                <StepProgress currentStep={currentStep} />
+            {/* 詳細設定トグル */}
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(v => !v)}
+              className="text-xs text-gray-400 hover:text-gray-600 text-left transition-colors flex items-center gap-1"
+            >
+              <span>{showAdvanced ? '▲' : '▼'}</span>
+              <span>詳細設定（カテゴリ・記事目的・文字数・ターゲット層など）</span>
+            </button>
+
+            {showAdvanced && (
+              <div className="flex flex-col gap-3 pt-2 border-t border-gray-100">
+                {/* カテゴリ + 企業制限 */}
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={category}
+                    onChange={e => setCategory(e.target.value)}
+                    placeholder="カテゴリ（任意）例：転職、クレジットカード"
+                    disabled={generating}
+                    className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50"
+                  />
+                  <select
+                    value={companyRestriction}
+                    onChange={e => setCompanyRestriction(e.target.value)}
+                    disabled={generating}
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
+                  >
+                    <option value="category">
+                      {companyRestriction === 'category' && categorySetting
+                        ? `カテゴリ設定に従う（現在：${categorySetting === 'registered_only' ? '登録企業のみ' : 'AIに任せる'}）`
+                        : 'カテゴリ設定に従う'}
+                    </option>
+                    <option value="registered_only">登録企業のみ（強制）</option>
+                    <option value="ai">AIに任せる（強制）</option>
+                  </select>
+                </div>
+
+                {/* 記事目的 */}
+                <div className="flex gap-3">
+                  <select
+                    value={articlePurpose}
+                    onChange={e => setArticlePurpose(e.target.value)}
+                    disabled={generating}
+                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
+                  >
+                    <option value="">記事目的（任意）</option>
+                    <option value="inbound">誘導記事（SEO流入→回遊）</option>
+                    <option value="cv">自社商品・サービスのCV</option>
+                    <option value="line">LINE・メルマガ登録</option>
+                    <option value="whitepaper">ホワイトペーパー・資料DL</option>
+                    <option value="branding">ブランディング・認知拡大</option>
+                    <option value="other">その他</option>
+                  </select>
+                  {articlePurpose === 'other' && (
+                    <input
+                      type="text"
+                      value={articlePurposeOther}
+                      onChange={e => setArticlePurposeOther(e.target.value)}
+                      placeholder="記事目的を入力..."
+                      disabled={generating}
+                      className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50"
+                    />
+                  )}
+                </div>
+
+                {/* 文字数指定 */}
+                <div className="flex gap-3">
+                  <select
+                    value={wordCountType}
+                    onChange={e => { setWordCountType(e.target.value); setWordCountValue('') }}
+                    disabled={generating}
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
+                  >
+                    <option value="absolute">絶対値</option>
+                    <option value="relative">競合比（相対値）</option>
+                  </select>
+                  <select
+                    value={wordCountValue}
+                    onChange={e => setWordCountValue(e.target.value)}
+                    disabled={generating}
+                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
+                  >
+                    <option value="">文字数指定（任意）</option>
+                    {wordCountType === 'absolute' ? (
+                      <>
+                        <option value="〜3,000字">〜3,000字</option>
+                        <option value="3,000〜5,000字">3,000〜5,000字</option>
+                        <option value="5,000〜7,000字">5,000〜7,000字</option>
+                        <option value="7,000〜10,000字">7,000〜10,000字</option>
+                        <option value="10,000〜15,000字">10,000〜15,000字</option>
+                        <option value="15,000字〜">15,000字〜</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="競合平均-20%">競合平均 -20%</option>
+                        <option value="競合平均-10%">競合平均 -10%</option>
+                        <option value="競合平均±0%">競合平均 ±0%</option>
+                        <option value="競合平均+20%">競合平均 +20%</option>
+                        <option value="競合平均+50%">競合平均 +50%</option>
+                        <option value="競合平均+100%">競合平均 +100%</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                {/* ターゲット層 */}
+                <input
+                  type="text"
+                  value={targetAudience}
+                  onChange={e => setTargetAudience(e.target.value)}
+                  placeholder="ターゲット層（任意）例：30代会社員・副業初心者"
+                  disabled={generating}
+                  className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50"
+                />
+
+                {/* 自由記述プロンプト */}
+                <textarea
+                  value={customPrompt}
+                  onChange={e => setCustomPrompt(e.target.value)}
+                  placeholder="追加指示（任意）例：競合他社Aには言及しない、体験談を多めに入れる"
+                  disabled={generating}
+                  rows={2}
+                  className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50 resize-none"
+                />
+
+                {/* 参照URL設定 */}
+                <button
+                  type="button"
+                  onClick={() => setShowUrlFields(v => !v)}
+                  className="text-xs text-gray-400 hover:text-gray-600 text-left transition-colors"
+                >
+                  {showUrlFields ? '▲ 参照URL設定を閉じる' : '▼ 参照URL設定（任意）'}
+                </button>
+                {showUrlFields && (
+                  <div className="flex flex-col gap-2 pl-3 border-l-2 border-gray-100">
+                    <textarea
+                      value={mustReferenceUrls}
+                      onChange={e => setMustReferenceUrls(e.target.value)}
+                      placeholder={"参照必須URL（1行1URL）\nhttps://example.com/page1"}
+                      disabled={generating}
+                      rows={3}
+                      className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50 resize-none"
+                    />
+                    <textarea
+                      value={neverReferenceUrls}
+                      onChange={e => setNeverReferenceUrls(e.target.value)}
+                      placeholder={"参照・言及禁止URL（1行1URL）\nhttps://competitor.com"}
+                      disabled={generating}
+                      rows={2}
+                      className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50 resize-none"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
+            {/* 生成中プログレス */}
+            {generating && currentStep && <StepProgress currentStep={currentStep} />}
+
+            {/* ステータスメッセージ */}
             {statusMessage && (
               <div className={`text-sm px-4 py-2.5 rounded-xl ${
-                statusMessage.type === 'error'
-                  ? 'bg-red-50 text-red-700'
-                  : statusMessage.type === 'success'
-                  ? 'bg-green-50 text-green-700'
-                  : 'bg-blue-50 text-blue-700'
+                statusMessage.type === 'error'   ? 'bg-red-50 text-red-700'
+                : statusMessage.type === 'success' ? 'bg-green-50 text-green-700'
+                : 'bg-blue-50 text-blue-700'
               }`}>
                 {statusMessage.text}
               </div>
             )}
+
+            {/* カニバリゼーション警告 */}
+            {similarJobs.length > 0 && !generating && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
+                <p className="text-sm font-medium text-yellow-800 mb-1">類似キーワードの記事があります（カニバリゼーションに注意）</p>
+                <ul className="flex flex-col gap-0.5 mb-1.5">
+                  {similarJobs.map(j => (
+                    <li key={j.id} className="text-xs text-yellow-700">
+                      ・<button type="button" onClick={() => router.push(`/article/${j.id}`)} className="underline hover:text-yellow-900">{j.main_keyword}</button>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-yellow-600">内容が重複する可能性があります。このまま生成することもできます。</p>
+              </div>
+            )}
+
+            {!isPro && creditsRemaining <= 0 && !generating && (
+              <p className="text-sm text-red-600">
+                クレジットが不足しています。
+                <Link href="/settings" className="underline ml-1">プランをアップグレード</Link>
+              </p>
+            )}
           </form>
         </div>
 
-        {/* Jobs table card */}
+        {/* Jobs table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          {/* Table header with filters */}
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4">
             <h2 className="font-semibold text-gray-800">生成済み記事一覧</h2>
             <div className="flex items-center gap-3">
               <input
                 type="text"
                 value={searchFilter}
-                onChange={(e) => setSearchFilter(e.target.value)}
+                onChange={e => setSearchFilter(e.target.value)}
                 placeholder="キーワードで検索..."
                 className="border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-48 bg-gray-50"
               />
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={e => setStatusFilter(e.target.value)}
                 className="border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-600"
               >
-                <option value="all">すべてのステータス</option>
+                <option value="all">すべて</option>
                 <option value="queued">待機中</option>
                 <option value="running">生成中</option>
                 <option value="done">完了</option>
@@ -350,25 +619,18 @@ export default function NewDashboardPage() {
                   </td>
                 </tr>
               ) : (
-                filteredJobs.map((job) => (
+                filteredJobs.map(job => (
                   <tr key={job.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-gray-800">{job.main_keyword}</div>
-                      {job.status === 'running' && job.current_step && (
-                        <StepProgress currentStep={job.current_step} />
-                      )}
+                      {job.status === 'running' && job.current_step && <StepProgress currentStep={job.current_step} />}
                     </td>
-                    <td className="px-4 py-4">
-                      <StatusBadge status={job.status} />
-                    </td>
+                    <td className="px-4 py-4"><StatusBadge status={job.status} /></td>
                     <td className="px-4 py-4 text-xs text-gray-400">{formatDate(job.created_at)}</td>
                     <td className="px-4 py-4 text-xs text-gray-400">{job.category ?? '—'}</td>
                     <td className="px-6 py-4 text-right">
                       {job.status === 'done' ? (
-                        <Link
-                          href={`/article/${job.id}`}
-                          className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
-                        >
+                        <Link href={`/article/${job.id}`} className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">
                           記事を見る →
                         </Link>
                       ) : (
