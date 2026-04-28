@@ -42,6 +42,7 @@ export default function DashboardPage() {
   const [mustReferenceUrls, setMustReferenceUrls] = useState('')
   const [neverReferenceUrls, setNeverReferenceUrls] = useState('')
   const [showUrlFields, setShowUrlFields] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [bulkMode, setBulkMode] = useState(false)
   const [bulkKeywords, setBulkKeywords] = useState('')
   const [jobs, setJobs] = useState([])
@@ -415,140 +416,153 @@ export default function DashboardPage() {
                 {generating ? (bulkMode ? '登録中...' : '生成中...') : (bulkMode ? '一括登録' : '記事生成')}
               </button>
             </div>
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="カテゴリ（任意）例：転職、クレジットカード"
-                disabled={generating}
-                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
-              />
-              <select
-                value={companyRestriction}
-                onChange={(e) => setCompanyRestriction(e.target.value)}
-                disabled={generating}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700"
-              >
-                <option value="category">
-                  {companyRestriction === 'category' && categorySetting
-                    ? `カテゴリ設定に従う（現在：${categorySetting === 'registered_only' ? '登録企業のみ' : 'AIに任せる'}）`
-                    : 'カテゴリ設定に従う'}
-                </option>
-                <option value="registered_only">登録企業のみ（強制）</option>
-                <option value="ai">AIに任せる（強制）</option>
-              </select>
-            </div>
-            {/* 記事目的 */}
-            <div className="flex gap-3">
-              <select
-                value={articlePurpose}
-                onChange={(e) => setArticlePurpose(e.target.value)}
-                disabled={generating}
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700"
-              >
-                <option value="">記事目的（任意）</option>
-                <option value="inbound">誘導記事（SEO流入→回遊）</option>
-                <option value="cv">自社商品・サービスのCV</option>
-                <option value="line">LINE・メルマガ登録</option>
-                <option value="whitepaper">ホワイトペーパー・資料DL</option>
-                <option value="branding">ブランディング・認知拡大</option>
-                <option value="other">その他</option>
-              </select>
-              {articlePurpose === 'other' && (
-                <input
-                  type="text"
-                  value={articlePurposeOther}
-                  onChange={(e) => setArticlePurposeOther(e.target.value)}
-                  placeholder="記事目的を入力..."
-                  disabled={generating}
-                  className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
-                />
-              )}
-            </div>
-            {/* 文字数指定 */}
-            <div className="flex gap-3">
-              <select
-                value={wordCountType}
-                onChange={(e) => { setWordCountType(e.target.value); setWordCountValue('') }}
-                disabled={generating}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700"
-              >
-                <option value="absolute">絶対値</option>
-                <option value="relative">競合比（相対値）</option>
-              </select>
-              <select
-                value={wordCountValue}
-                onChange={(e) => setWordCountValue(e.target.value)}
-                disabled={generating}
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700"
-              >
-                <option value="">文字数指定（任意）</option>
-                {wordCountType === 'absolute' ? (
-                  <>
-                    <option value="〜3,000字">〜3,000字</option>
-                    <option value="3,000〜5,000字">3,000〜5,000字</option>
-                    <option value="5,000〜7,000字">5,000〜7,000字</option>
-                    <option value="7,000〜10,000字">7,000〜10,000字</option>
-                    <option value="10,000〜15,000字">10,000〜15,000字</option>
-                    <option value="15,000字〜">15,000字〜</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="競合平均-20%">競合平均 -20%</option>
-                    <option value="競合平均-10%">競合平均 -10%</option>
-                    <option value="競合平均±0%">競合平均 ±0%</option>
-                    <option value="競合平均+20%">競合平均 +20%</option>
-                    <option value="競合平均+50%">競合平均 +50%</option>
-                    <option value="競合平均+100%">競合平均 +100%</option>
-                  </>
-                )}
-              </select>
-            </div>
-            {/* ターゲット層 */}
-            <input
-              type="text"
-              value={targetAudience}
-              onChange={(e) => setTargetAudience(e.target.value)}
-              placeholder="ターゲット層（任意）例：30代会社員・副業初心者"
-              disabled={generating}
-              className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
-            />
-            {/* 自由記述プロンプト */}
-            <textarea
-              value={customPrompt}
-              onChange={(e) => setCustomPrompt(e.target.value)}
-              placeholder="追加指示（任意）例：競合他社Aには言及しない、体験談を多めに入れる"
-              disabled={generating}
-              rows={2}
-              className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 resize-none"
-            />
-            {/* 参照URL設定 */}
+            {/* 詳細設定トグル */}
             <button
               type="button"
-              onClick={() => setShowUrlFields(v => !v)}
-              className="text-xs text-gray-400 hover:text-gray-600 text-left transition-colors"
+              onClick={() => setShowAdvanced(v => !v)}
+              className="text-xs text-gray-400 hover:text-gray-600 text-left transition-colors flex items-center gap-1"
             >
-              {showUrlFields ? '▲ 参照URL設定を閉じる' : '▼ 参照URL設定（任意）'}
+              <span>{showAdvanced ? '▲' : '▼'}</span>
+              <span>詳細設定（カテゴリ・記事目的・文字数・ターゲット層など）</span>
             </button>
-            {showUrlFields && (
-              <div className="flex flex-col gap-2 pl-2 border-l-2 border-gray-100">
-                <textarea
-                  value={mustReferenceUrls}
-                  onChange={(e) => setMustReferenceUrls(e.target.value)}
-                  placeholder={"参照必須URL（1行1URL）\nhttps://example.com/page1\nhttps://example.com/page2"}
+            {showAdvanced && (
+              <div className="flex flex-col gap-3 pt-1 border-t border-gray-100">
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    placeholder="カテゴリ（任意）例：転職、クレジットカード"
+                    disabled={generating}
+                    className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
+                  />
+                  <select
+                    value={companyRestriction}
+                    onChange={(e) => setCompanyRestriction(e.target.value)}
+                    disabled={generating}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700"
+                  >
+                    <option value="category">
+                      {companyRestriction === 'category' && categorySetting
+                        ? `カテゴリ設定に従う（現在：${categorySetting === 'registered_only' ? '登録企業のみ' : 'AIに任せる'}）`
+                        : 'カテゴリ設定に従う'}
+                    </option>
+                    <option value="registered_only">登録企業のみ（強制）</option>
+                    <option value="ai">AIに任せる（強制）</option>
+                  </select>
+                </div>
+                {/* 記事目的 */}
+                <div className="flex gap-3">
+                  <select
+                    value={articlePurpose}
+                    onChange={(e) => setArticlePurpose(e.target.value)}
+                    disabled={generating}
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700"
+                  >
+                    <option value="">記事目的（任意）</option>
+                    <option value="inbound">誘導記事（SEO流入→回遊）</option>
+                    <option value="cv">自社商品・サービスのCV</option>
+                    <option value="line">LINE・メルマガ登録</option>
+                    <option value="whitepaper">ホワイトペーパー・資料DL</option>
+                    <option value="branding">ブランディング・認知拡大</option>
+                    <option value="other">その他</option>
+                  </select>
+                  {articlePurpose === 'other' && (
+                    <input
+                      type="text"
+                      value={articlePurposeOther}
+                      onChange={(e) => setArticlePurposeOther(e.target.value)}
+                      placeholder="記事目的を入力..."
+                      disabled={generating}
+                      className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
+                    />
+                  )}
+                </div>
+                {/* 文字数指定 */}
+                <div className="flex gap-3">
+                  <select
+                    value={wordCountType}
+                    onChange={(e) => { setWordCountType(e.target.value); setWordCountValue('') }}
+                    disabled={generating}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700"
+                  >
+                    <option value="absolute">絶対値</option>
+                    <option value="relative">競合比（相対値）</option>
+                  </select>
+                  <select
+                    value={wordCountValue}
+                    onChange={(e) => setWordCountValue(e.target.value)}
+                    disabled={generating}
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700"
+                  >
+                    <option value="">文字数指定（任意）</option>
+                    {wordCountType === 'absolute' ? (
+                      <>
+                        <option value="〜3,000字">〜3,000字</option>
+                        <option value="3,000〜5,000字">3,000〜5,000字</option>
+                        <option value="5,000〜7,000字">5,000〜7,000字</option>
+                        <option value="7,000〜10,000字">7,000〜10,000字</option>
+                        <option value="10,000〜15,000字">10,000〜15,000字</option>
+                        <option value="15,000字〜">15,000字〜</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="競合平均-20%">競合平均 -20%</option>
+                        <option value="競合平均-10%">競合平均 -10%</option>
+                        <option value="競合平均±0%">競合平均 ±0%</option>
+                        <option value="競合平均+20%">競合平均 +20%</option>
+                        <option value="競合平均+50%">競合平均 +50%</option>
+                        <option value="競合平均+100%">競合平均 +100%</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+                {/* ターゲット層 */}
+                <input
+                  type="text"
+                  value={targetAudience}
+                  onChange={(e) => setTargetAudience(e.target.value)}
+                  placeholder="ターゲット層（任意）例：30代会社員・副業初心者"
                   disabled={generating}
-                  rows={3}
-                  className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 resize-none"
+                  className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
                 />
+                {/* 自由記述プロンプト */}
                 <textarea
-                  value={neverReferenceUrls}
-                  onChange={(e) => setNeverReferenceUrls(e.target.value)}
-                  placeholder={"参照・言及禁止URL（1行1URL）\nhttps://competitor.com"}
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  placeholder="追加指示（任意）例：競合他社Aには言及しない、体験談を多めに入れる"
                   disabled={generating}
                   rows={2}
                   className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 resize-none"
                 />
+                {/* 参照URL設定 */}
+                <button
+                  type="button"
+                  onClick={() => setShowUrlFields(v => !v)}
+                  className="text-xs text-gray-400 hover:text-gray-600 text-left transition-colors"
+                >
+                  {showUrlFields ? '▲ 参照URL設定を閉じる' : '▼ 参照URL設定（任意）'}
+                </button>
+                {showUrlFields && (
+                  <div className="flex flex-col gap-2 pl-2 border-l-2 border-gray-100">
+                    <textarea
+                      value={mustReferenceUrls}
+                      onChange={(e) => setMustReferenceUrls(e.target.value)}
+                      placeholder={"参照必須URL（1行1URL）\nhttps://example.com/page1\nhttps://example.com/page2"}
+                      disabled={generating}
+                      rows={3}
+                      className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 resize-none"
+                    />
+                    <textarea
+                      value={neverReferenceUrls}
+                      onChange={(e) => setNeverReferenceUrls(e.target.value)}
+                      placeholder={"参照・言及禁止URL（1行1URL）\nhttps://competitor.com"}
+                      disabled={generating}
+                      rows={2}
+                      className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 resize-none"
+                    />
+                  </div>
+                )}
               </div>
             )}
           </form>
