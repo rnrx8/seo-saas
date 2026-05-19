@@ -195,7 +195,8 @@ export default function NewDashboardPage() {
     e.preventDefault()
     if (!keyword.trim() || generating) return
 
-    if (profile?.plan !== 'pro' && profile?.credits_remaining <= 0) {
+    const creditCost = (deliveryType === 'outline_only' || deliveryType === 'research_only') ? 0.5 : 1
+    if (profile?.plan !== 'pro' && profile?.credits_remaining < creditCost) {
       setStatusMessage({ type: 'error', text: 'クレジットが不足しています。設定ページからプランをアップグレードしてください。' })
       return
     }
@@ -220,32 +221,42 @@ export default function NewDashboardPage() {
     await fetchJobs()
     setKeyword('')
 
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30 * 60 * 1000)
-    try {
-      await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: job.id, keyword: job.main_keyword }),
-        signal: controller.signal,
-      })
-    } catch (err) {
-      clearTimeout(timeoutId)
-      if (err.name !== 'AbortError') {
-        setStatusMessage({ type: 'error', text: 'サーバーに接続できませんでした' })
-        setGenerating(false)
-        return
-      }
-    }
-    clearTimeout(timeoutId)
+    // fire-and-forget: Railway が cold start でタイムアウトしても job は DB に残るので polling で追跡できる
+    const callGenerate = () => fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_id: job.id, keyword: job.main_keyword }),
+    }).catch(() => {})
+
+    callGenerate()
+
+    // queued のまま2分経過したら /api/generate を再送信（Railway cold start 対策、最大3回）
+    let queuedSince = Date.now()
+    let retryCount = 0
+    const RETRY_AFTER_MS = 2 * 60 * 1000
+    const MAX_RETRIES = 3
 
     const id = setInterval(async () => {
       const { data } = await getSupabase().from('jobs').select('status, current_step').eq('id', job.id).single()
       if (data?.current_step !== undefined) setCurrentStep(data.current_step)
-      if (data?.status === 'done') {
+
+      if (data?.status === 'queued') {
+        if (Date.now() - queuedSince > RETRY_AFTER_MS) {
+          if (retryCount < MAX_RETRIES) {
+            retryCount++
+            queuedSince = Date.now()
+            callGenerate()
+          } else {
+            clearInterval(id); setPollingId(null); setGenerating(false); setCurrentStep(null); fetchJobs()
+            setStatusMessage({ type: 'error', text: '生成を開始できませんでした。ページを更新して再度お試しください。' })
+          }
+        }
+      } else if (data?.status === 'running') {
+        queuedSince = Date.now()
+      } else if (data?.status === 'done') {
         clearInterval(id); setPollingId(null); setGenerating(false); setCurrentStep(null); fetchJobs()
         if (profile?.plan !== 'pro') {
-          await getSupabase().from('user_profiles').update({ credits_remaining: profile.credits_remaining - 1 }).eq('id', profile.id)
+          await getSupabase().from('user_profiles').update({ credits_remaining: profile.credits_remaining - creditCost }).eq('id', profile.id)
           await fetchProfile(profile.id)
         }
         setStatusMessage({ type: 'success', text: '生成完了！' })
