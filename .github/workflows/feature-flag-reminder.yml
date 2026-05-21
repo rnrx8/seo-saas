@@ -2,6 +2,7 @@ name: Feature Flag Reminder
 on:
   schedule:
     - cron: '0 1 * * 2,5'  # 火・金 10:00 JST (UTC+9)
+  workflow_dispatch:
 
 jobs:
   remind:
