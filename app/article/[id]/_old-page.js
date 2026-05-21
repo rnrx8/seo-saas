@@ -9,6 +9,21 @@ import remarkGfm from 'remark-gfm'
 import { marked } from 'marked'
 import { getSupabase } from '@/lib/supabase'
 
+function stripInternalPreamble(text) {
+  if (!text) return text
+  // Strip internal "最終確認" blocks that the pipeline may prepend to the article.
+  // These appear before the first markdown heading and should not be shown to users.
+  const lines = text.split('\n')
+  const firstHeadingIdx = lines.findIndex(l => /^#{1,3} /.test(l))
+  if (firstHeadingIdx > 0) {
+    const preamble = lines.slice(0, firstHeadingIdx).join('\n')
+    if (preamble.includes('最終確認')) {
+      return lines.slice(firstHeadingIdx).join('\n')
+    }
+  }
+  return text
+}
+
 const MD_COMPONENTS = {
   h1:     ({ children }) => <h1 className="text-2xl font-bold mt-6 mb-3">{children}</h1>,
   h2:     ({ children }) => <h2 className="text-xl font-bold mt-5 mb-2 border-b pb-1">{children}</h2>,
@@ -136,7 +151,7 @@ export default function ArticlePage({ params }) {
             <div className="p-8">
               {activeTab === 'article' && (
                 <ArticleView
-                  markdown={artifacts['article'] ?? ''}
+                  markdown={stripInternalPreamble(artifacts['article'] ?? '')}
                   onOpenPanel={() => setShowPanel(true)}
                   wpConfigured={wpConfigured}
                   jobId={id}
