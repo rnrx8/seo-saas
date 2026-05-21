@@ -46,7 +46,7 @@ export default function BugsPage() {
   const [issues, setIssues] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [showClosed, setShowClosed] = useState(false)
+  const [showClosed] = useState(true)
 
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
@@ -105,15 +105,6 @@ export default function BugsPage() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={showClosed}
-                onChange={e => setShowClosed(e.target.checked)}
-                className="rounded border-gray-300"
-              />
-              対応完了を表示
-            </label>
             <button
               onClick={fetchIssues}
               disabled={loading}
@@ -142,7 +133,7 @@ export default function BugsPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 py-16 text-center text-gray-400 text-sm">
-            {showClosed ? 'バグ報告はありません' : '対応中のバグはありません'}
+            バグ報告はありません
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
