@@ -32,7 +32,7 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">SEO記事生成</h1>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">メールアドレレス</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">メールアドレス</label>
             <input
               type="email"
               value={email}
