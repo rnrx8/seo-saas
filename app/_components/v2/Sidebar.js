@@ -78,6 +78,19 @@ const NAV_ITEMS = [
     ),
   },
   {
+    key: 'bugs',
+    label: 'バグ管理',
+    href: '/bugs',
+    enabled: true,
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5 flex-shrink-0">
+        <path d="M9 9a3 3 0 116 0v1H9V9z" />
+        <path d="M6.5 10H4a1 1 0 00-1 1v1a5 5 0 005 5h4a5 5 0 005-5v-1a1 1 0 00-1-1h-2.5" strokeLinecap="round" />
+        <path d="M12 17v3M8.5 8.5L6 6M15.5 8.5L18 6M6 20l2-2M18 20l-2-2" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     key: 'settings',
     label: '設定',
     href: '/settings',
@@ -112,6 +125,7 @@ export default function Sidebar({ profile, theme }) {
     // article ページでは「生成済み記事」を active に、dashboard では「ダッシュボード」を active にする
     if (item.key === 'dashboard') return pathname === '/dashboard'
     if (item.key === 'articles') return pathname?.startsWith('/article')
+    if (item.key === 'bugs') return pathname === '/bugs'
     return pathname === item.href
   }
 
