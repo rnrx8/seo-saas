@@ -23,21 +23,53 @@ jobs:
           prompt: |
             Issue #${{ github.event.issue.number }} のバグを修正してください。
             Issue本文に該当ファイル名と行番号が書かれている場合は、まずそのファイルを直接開いて該当箇所を修正してください。コードベース全体の調査は最小限にしてください。
+
             手順:
             1. Issue本文を読み、該当ファイル・該当箇所を特定する
-            2. ブランチ名は必ず fix/issue-${{ github.event.issue.number }} にする
-            3. 修正を行い、変更を説明したPRを作成する。PR本文に Closes #${{ github.event.issue.number }} を含める
+            2. このリポジトリ（Next.js フロントエンド）のコードで修正できると判断したら:
+               - ブランチ名は必ず fix/issue-${{ github.event.issue.number }} にする
+               - 修正を行い、変更を説明したPRを作成する。PR本文に Closes #${{ github.event.issue.number }} を含める
+            3. このリポジトリでは修正できないと判断した場合（例: FastAPI pipeline側のバグ、外部サービスの設定など）:
+               - PRは作成しない
+               - Issue #${{ github.event.issue.number }} に、原因・修正が必要なファイル・具体的な修正内容をコメントとして残す
+
             CLAUDE.md の規約に従い、小さく安全な変更にとどめること。
-      - name: PRを探してDiscordへ通知
+      - name: lintチェック（PRがあれば）
+        if: always()
+        id: lint
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="fix/issue-${{ github.event.issue.number }}"
+          if git fetch origin "$BRANCH" 2>/dev/null; then
+            git checkout "$BRANCH"
+            npm ci --prefer-offline --silent
+            if npm run lint --silent 2>&1; then
+              echo "result=passed" >> $GITHUB_OUTPUT
+            else
+              echo "result=failed" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "result=no_branch" >> $GITHUB_OUTPUT
+          fi
+      - name: Discord通知
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          LINT_RESULT: ${{ steps.lint.outputs.result }}
         run: |
+          ISSUE_URL="https://github.com/${{ github.repository }}/issues/${{ github.event.issue.number }}"
           PR_URL=$(gh pr list --state open --head "fix/issue-${{ github.event.issue.number }}" --json url --jq '.[0].url // empty')
+
           if [ -z "$PR_URL" ]; then
-            MSG="🔧 Issue #${{ github.event.issue.number }} を処理しました。PRが見つからないのでGitHubを確認してください。"
+            MSG="❌ Issue #${{ github.event.issue.number }} は自動修正できませんでした。\nClaudeがIssueに原因と手動修正の手順をコメントしています。\n$ISSUE_URL"
+          elif [ "$LINT_RESULT" = "failed" ]; then
+            MSG="⚠️ Issue #${{ github.event.issue.number }} のPRを作成しましたが、lintエラーがあります。手動確認が必要です。\n$PR_URL"
           else
-            MSG="✅ Issue #${{ github.event.issue.number }} の修正PRができました\n$PR_URL\n確認して問題なければマージしてください。"
+            MSG="✅ Issue #${{ github.event.issue.number }} の修正PRができました。確認して問題なければマージしてください。\n$PR_URL"
           fi
-          curl -s -H "Content-Type: application/json" -d "{\"content\":\"$MSG\"}" "$DISCORD_WEBHOOK_URL"
+
+          curl -s -H "Content-Type: application/json" \
+            -d "{\"content\":\"$MSG\"}" \
+            "$DISCORD_WEBHOOK_URL"
