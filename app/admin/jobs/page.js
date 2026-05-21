@@ -32,6 +32,7 @@ export default function AdminJobsPage() {
   const [error, setError] = useState(null)
   const [statusFilter, setStatusFilter] = useState('failed')
   const [sessionToken, setSessionToken] = useState(null)
+  const [expandedError, setExpandedError] = useState(null)
 
   const fetchJobs = useCallback((status, token) => {
     setLoading(true)
@@ -118,36 +119,57 @@ export default function AdminJobsPage() {
               ) : (
                 jobs.map(job => {
                   const s = STATUS_MAP[job.status] ?? { bg: '#f3f4f6', color: '#6b7280', label: job.status }
+                  const isExpanded = expandedError === job.id
                   return (
-                    <tr key={job.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-5 py-3 text-sm text-gray-800 max-w-xs">
-                        <span className="block truncate">{job.main_keyword}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap"
-                          style={{ backgroundColor: s.bg, color: s.color }}
-                        >
-                          {s.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-500 max-w-[180px]">
-                        <span className="block truncate">{job.user_email}</span>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-400">{job.category ?? '—'}</td>
-                      <td className="px-4 py-3 text-xs text-gray-400">{job.current_step ?? '—'}</td>
-                      <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{fmt(job.created_at)}</td>
-                      <td className="px-4 py-3 text-right">
-                        {job.tenant_id && (
-                          <button
-                            onClick={() => router.push(`/admin/users/${job.tenant_id}`)}
-                            className="text-xs text-red-600 hover:text-red-700 font-medium transition-colors"
+                    <>
+                      <tr key={job.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-5 py-3 text-sm text-gray-800 max-w-xs">
+                          <span className="block truncate">{job.main_keyword}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap"
+                            style={{ backgroundColor: s.bg, color: s.color }}
                           >
-                            ユーザー →
-                          </button>
-                        )}
-                      </td>
-                    </tr>
+                            {s.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500 max-w-[180px]">
+                          <span className="block truncate">{job.user_email}</span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-400">{job.category ?? '—'}</td>
+                        <td className="px-4 py-3 text-xs text-gray-400">{job.current_step ?? '—'}</td>
+                        <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{fmt(job.created_at)}</td>
+                        <td className="px-4 py-3 text-right flex items-center justify-end gap-3">
+                          {job.error_message && (
+                            <button
+                              onClick={() => setExpandedError(isExpanded ? null : job.id)}
+                              className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
+                              title={job.error_message}
+                            >
+                              {isExpanded ? 'エラー ▲' : 'エラー ▼'}
+                            </button>
+                          )}
+                          {job.tenant_id && (
+                            <button
+                              onClick={() => router.push(`/admin/users/${job.tenant_id}`)}
+                              className="text-xs text-red-600 hover:text-red-700 font-medium transition-colors"
+                            >
+                              ユーザー →
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                      {isExpanded && job.error_message && (
+                        <tr key={`${job.id}-error`} className="bg-red-50">
+                          <td colSpan={7} className="px-5 py-3">
+                            <pre className="text-xs text-red-800 whitespace-pre-wrap break-all font-mono">
+                              {job.error_message}
+                            </pre>
+                          </td>
+                        </tr>
+                      )}
+                    </>
                   )
                 })
               )}

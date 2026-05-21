@@ -13,7 +13,7 @@ export async function GET(request) {
   const admin = getAdminClient()
   let query = admin
     .from('jobs')
-    .select('id, main_keyword, status, created_at, current_step, category, tenant_id')
+    .select('id, main_keyword, status, created_at, current_step, category, tenant_id, error_message')
     .order('created_at', { ascending: false })
     .limit(100)
 
