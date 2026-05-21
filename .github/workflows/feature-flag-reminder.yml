@@ -1,0 +1,46 @@
+name: Feature Flag Reminder
+on:
+  schedule:
+    - cron: '0 1 * * 2,5'  # 火・金 10:00 JST (UTC+9)
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: フィーチャーフラグ確認 & Discord通知
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          python3 << 'PYEOF'
+          import re, json, os, urllib.request
+
+          with open('app/_lib/feature-flag.js') as f:
+              content = f.read()
+
+          matches = re.findall(r'const (\w+)\s*=\s*\[([\s\S]*?)\]', content)
+          active = []
+          for name, body in matches:
+              emails = re.findall(r"'([^']+)'", body)
+              if emails:
+                  active.append(f"• {name}: {', '.join(emails)}")
+
+          if not active:
+              print("アクティブなフィーチャーフラグなし、通知スキップ")
+              exit(0)
+
+          msg = (
+              "🚩 **アクティブなフィーチャーフラグがあります**\n"
+              "全体展開が完了したら `app/_lib/feature-flag.js` から削除してください\n\n"
+              + "\n".join(active)
+          )
+          payload = json.dumps({"content": msg}).encode()
+          req = urllib.request.Request(
+              os.environ["DISCORD_WEBHOOK_URL"],
+              data=payload,
+              headers={"Content-Type": "application/json"},
+          )
+          urllib.request.urlopen(req)
+          print("Discord通知送信完了")
+          PYEOF
