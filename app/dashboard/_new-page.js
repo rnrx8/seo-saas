@@ -180,7 +180,7 @@ export default function NewDashboardPage() {
         .insert({ ...resolveJobParams(keywords[i]), tenant_id: user.id })
         .select().single()
       if (!error && job) {
-        fetch('/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ job_id: job.id, keyword: job.main_keyword }) }).catch(() => {})
+        fetch('/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ job_id: job.id, keyword: job.main_keyword, word_count_setting: job.word_count_setting }) }).catch(() => {})
         successCount++
       }
       if (i < keywords.length - 1) await new Promise(r => setTimeout(r, 300))
@@ -225,7 +225,7 @@ export default function NewDashboardPage() {
     const callGenerate = () => fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ job_id: job.id, keyword: job.main_keyword }),
+      body: JSON.stringify({ job_id: job.id, keyword: job.main_keyword, word_count_setting: job.word_count_setting }),
     }).catch(() => {})
 
     callGenerate()
