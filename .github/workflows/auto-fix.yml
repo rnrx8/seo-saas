@@ -19,15 +19,15 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--max-turns 15 --model claude-sonnet-4-6"
+          claude_args: "--max-turns 40 --model claude-sonnet-4-6"
           prompt: |
             Issue #${{ github.event.issue.number }} のバグを修正してください。
-            1. Issue本文（実際に起きたこと/期待した動作/再現手順/該当URL）を読む
-            2. 原因を特定する
-            3. ブランチ名は必ず fix/issue-${{ github.event.issue.number }} にする
-            4. CLAUDE.md と既存のコード規約に従う
-            5. 変更を説明したPRを作成し、本文に Closes #${{ github.event.issue.number }} を含める
-            小さく安全な変更にとどめ、確信が持てない箇所はPR説明に明記すること。
+            Issue本文に該当ファイル名と行番号が書かれている場合は、まずそのファイルを直接開いて該当箇所を修正してください。コードベース全体の調査は最小限にしてください。
+            手順:
+            1. Issue本文を読み、該当ファイル・該当箇所を特定する
+            2. ブランチ名は必ず fix/issue-${{ github.event.issue.number }} にする
+            3. 修正を行い、変更を説明したPRを作成する。PR本文に Closes #${{ github.event.issue.number }} を含める
+            CLAUDE.md の規約に従い、小さく安全な変更にとどめること。
       - name: PRを探してDiscordへ通知
         if: always()
         env:
