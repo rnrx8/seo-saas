@@ -15,7 +15,7 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           python3 << 'PYEOF'
-          import re, json, os, urllib.request
+          import re, json, os
 
           with open('app/_lib/feature-flag.js') as f:
               content = f.read()
@@ -37,12 +37,11 @@ jobs:
               + "\n".join(active)
               + f"\n\n全体展開する場合はこちら → {rollout_url}"
           )
-          payload = json.dumps({"content": msg}).encode()
-          req = urllib.request.Request(
-              os.environ["DISCORD_WEBHOOK_URL"],
-              data=payload,
-              headers={"Content-Type": "application/json"},
+          import subprocess
+          payload = json.dumps({"content": msg})
+          subprocess.run(
+              ["curl", "-s", "-H", "Content-Type: application/json", "-d", payload, os.environ["DISCORD_WEBHOOK_URL"]],
+              check=True
           )
-          urllib.request.urlopen(req)
           print("Discord通知送信完了")
           PYEOF
