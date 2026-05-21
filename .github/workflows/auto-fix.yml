@@ -1,23 +1,42 @@
-name: Claude Auto Fix
-
+name: Auto Fix Bug
 on:
   issues:
-    types: [opened, labeled]
-  issue_comment:
-    types: [created]
-
+    types: [labeled]
 jobs:
-  claude-fix:
-    if: |
-      (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'auto-fix')) ||
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
+  fix:
+    if: github.event.label.name == 'bugfix'
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      issues: write
       pull-requests: write
+      issues: write
     steps:
       - uses: actions/checkout@v4
-      - uses: anthropics/claude-code-action@beta
+        with:
+          fetch-depth: 0
+      - name: Claude Code で修正
+        uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: "--max-turns 15 --model claude-sonnet-4-6"
+          prompt: |
+            Issue #${{ github.event.issue.number }} のバグを修正してください。
+            1. Issue本文（実際に起きたこと/期待した動作/再現手順/該当URL）を読む
+            2. 原因を特定する
+            3. ブランチ名は必ず fix/issue-${{ github.event.issue.number }} にする
+            4. CLAUDE.md と既存のコード規約に従う
+            5. 変更を説明したPRを作成し、本文に Closes #${{ github.event.issue.number }} を含める
+            小さく安全な変更にとどめ、確信が持てない箇所はPR説明に明記すること。
+      - name: PRを探してDiscordへ通知
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          PR_URL=$(gh pr list --state open --head "fix/issue-${{ github.event.issue.number }}" --json url --jq '.[0].url // empty')
+          if [ -z "$PR_URL" ]; then
+            MSG="🔧 Issue #${{ github.event.issue.number }} を処理しました。PRが見つからないのでGitHubを確認してください。"
+          else
+            MSG="✅ Issue #${{ github.event.issue.number }} の修正PRができました\n$PR_URL\n確認して問題なければマージしてください。"
+          fi
+          curl -s -H "Content-Type: application/json" -d "{\"content\":\"$MSG\"}" "$DISCORD_WEBHOOK_URL"
