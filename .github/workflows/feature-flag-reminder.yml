@@ -30,10 +30,11 @@ jobs:
               print("アクティブなフィーチャーフラグなし、通知スキップ")
               exit(0)
 
+          rollout_url = "https://github.com/rnrx8/seo-saas/actions/workflows/feature-flag-rollout.yml"
           msg = (
               "🚩 **アクティブなフィーチャーフラグがあります**\n"
-              "全体展開が完了したら `app/_lib/feature-flag.js` から削除してください\n\n"
               + "\n".join(active)
+              + f"\n\n全体展開する場合はこちら → {rollout_url}"
           )
           payload = json.dumps({"content": msg}).encode()
           req = urllib.request.Request(
