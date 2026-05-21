@@ -339,6 +339,9 @@ export default function DashboardPage() {
               </span>
             </span>
           )}
+          <Link href="/bugs" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
+            バグ管理
+          </Link>
           <Link href="/settings" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
             設定
           </Link>
