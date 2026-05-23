@@ -44,6 +44,16 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
+  {
+    key: 'services',
+    label: 'サービス状況',
+    href: '/admin/services',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5 flex-shrink-0">
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
 ]
 
 const SIDEBAR_BG = '#1a0505'
@@ -70,6 +80,7 @@ export default function AdminLayout({ children }) {
     if (item.key === 'dashboard') return pathname === '/admin/dashboard'
     if (item.key === 'users') return pathname?.startsWith('/admin/users')
     if (item.key === 'jobs') return pathname === '/admin/jobs'
+    if (item.key === 'services') return pathname === '/admin/services'
     return false
   }
 
