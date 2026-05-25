@@ -2,10 +2,10 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
+import MainLayout from '@/app/_components/v2/MainLayout'
 
 const PLANS = [
   {
@@ -46,6 +46,7 @@ const PLAN_LABELS = {
 export default function SettingsPage() {
   const router = useRouter()
   const [profile, setProfile] = useState(null)
+  const [theme, setTheme] = useState(null)
   const [loading, setLoading] = useState(true)
   const [deleteStep, setDeleteStep] = useState(null) // null | 'confirm' | 'password'
   const [deletePassword, setDeletePassword] = useState('')
@@ -58,17 +59,7 @@ export default function SettingsPage() {
   const [wpSaving, setWpSaving] = useState(false)
   const [wpSaveMsg, setWpSaveMsg] = useState('')
 
-  useEffect(() => {
-    getSupabase().auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        router.replace('/login')
-        return
-      }
-      fetchProfile(session.user.id)
-    })
-  }, [])
-
-  async function fetchProfile(userId) {
+  const fetchProfile = useCallback(async (userId) => {
     const { data } = await getSupabase()
       .from('user_profiles')
       .select('*')
@@ -80,7 +71,23 @@ export default function SettingsPage() {
     setWpAppPassword(data?.wp_app_password ?? '')
     setWpAuthType(data?.wp_auth_type ?? 'app_password')
     setLoading(false)
-  }
+  }, [])
+
+  const fetchTheme = useCallback(async (userId) => {
+    const { data } = await getSupabase().from('tenant_themes').select('*').eq('tenant_id', userId).maybeSingle()
+    if (data) setTheme(data)
+  }, [])
+
+  useEffect(() => {
+    getSupabase().auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        router.replace('/login')
+        return
+      }
+      fetchProfile(session.user.id)
+      fetchTheme(session.user.id)
+    })
+  }, [fetchProfile, fetchTheme])
 
   async function handleWpSave() {
     setWpSaving(true)
@@ -100,11 +107,6 @@ export default function SettingsPage() {
 
   function handleBuyCredits() {
     alert('クレジット追加購入機能は準備中です（Stripe連携予定）')
-  }
-
-  async function handleLogout() {
-    await getSupabase().auth.signOut()
-    router.replace('/login')
   }
 
   async function handleExport() {
@@ -177,22 +179,8 @@ export default function SettingsPage() {
   const isPro = profile?.plan === 'pro'
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-800">SEO記事生成</h1>
-        <nav className="flex items-center gap-6 text-sm text-gray-500">
-          <Link href="/dashboard" className="hover:text-gray-700 transition-colors">ダッシュボード</Link>
-          <Link href="/settings" className="font-medium text-blue-600">プラン設定</Link>
-          <Link href="/settings/services" className="hover:text-gray-700 transition-colors">サービス管理</Link>
-          <Link href="/settings/ctas" className="hover:text-gray-700 transition-colors">CTA管理</Link>
-          <Link href="/settings/companies" className="hover:text-gray-700 transition-colors">企業管理</Link>
-          <Link href="/settings/sources" className="hover:text-gray-700 transition-colors">一次情報</Link>
-          <button onClick={handleLogout} className="hover:text-gray-700 transition-colors">ログアウト</button>
-        </nav>
-      </header>
-
-      <main className="max-w-3xl mx-auto px-8 py-8 flex flex-col gap-8">
+    <MainLayout profile={profile} theme={theme}>
+      <div className="max-w-3xl mx-auto px-8 py-8 flex flex-col gap-8">
         {/* Current plan summary */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">現在のプラン</h2>
@@ -405,7 +393,7 @@ export default function SettingsPage() {
             </div>
           </div>
         </section>
-      </main>
+      </div>
 
       {/* STEP1: 確認モーダル */}
       {deleteStep === 'confirm' && (
@@ -471,6 +459,6 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
-    </div>
+    </MainLayout>
   )
 }
