@@ -58,6 +58,9 @@ export default function SettingsPage() {
   const [wpAuthType, setWpAuthType] = useState('app_password')
   const [wpSaving, setWpSaving] = useState(false)
   const [wpSaveMsg, setWpSaveMsg] = useState('')
+  const [highAccuracyDefault, setHighAccuracyDefault] = useState(false)
+  const [accuracySaving, setAccuracySaving] = useState(false)
+  const [accuracySaveMsg, setAccuracySaveMsg] = useState('')
 
   const fetchProfile = useCallback(async (userId) => {
     const { data } = await getSupabase()
@@ -70,6 +73,7 @@ export default function SettingsPage() {
     setWpUsername(data?.wp_username ?? '')
     setWpAppPassword(data?.wp_app_password ?? '')
     setWpAuthType(data?.wp_auth_type ?? 'app_password')
+    setHighAccuracyDefault(data?.high_accuracy_mode_default ?? false)
     setLoading(false)
   }, [])
 
@@ -103,6 +107,19 @@ export default function SettingsPage() {
 
   function handleUpgrade(planId) {
     alert(`「${PLAN_LABELS[planId]}」プランへのアップグレード機能は準備中です（Stripe連携予定）`)
+  }
+
+  async function handleAccuracySave(checked) {
+    setHighAccuracyDefault(checked)
+    setAccuracySaving(true)
+    setAccuracySaveMsg('')
+    const { error } = await getSupabase()
+      .from('user_profiles')
+      .update({ high_accuracy_mode_default: checked })
+      .eq('id', profile.id)
+    setAccuracySaving(false)
+    setAccuracySaveMsg(error ? '保存に失敗しました' : '保存しました')
+    setTimeout(() => setAccuracySaveMsg(''), 3000)
   }
 
   function handleBuyCredits() {
@@ -283,6 +300,35 @@ export default function SettingsPage() {
             })}
           </div>
         </section>
+        {/* 生成デフォルト設定 */}
+        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-1">生成デフォルト設定</h2>
+          <p className="text-xs text-gray-500 mb-4">記事生成フォームを開いたときのデフォルト設定です。プリセット選択時はプリセット側の設定が優先されます。</p>
+          <div className="flex items-start gap-3 border rounded-lg px-4 py-4 border-amber-200 bg-amber-50">
+            <input
+              type="checkbox"
+              id="default-high-accuracy"
+              checked={highAccuracyDefault}
+              onChange={e => handleAccuracySave(e.target.checked)}
+              disabled={accuracySaving}
+              className="mt-0.5 w-4 h-4 accent-amber-500 cursor-pointer flex-shrink-0"
+            />
+            <div className="flex-1">
+              <label htmlFor="default-high-accuracy" className="text-sm font-medium text-gray-700 cursor-pointer flex items-center gap-2">
+                情報精度99.9%モードをデフォルトで有効にする
+                <span className="text-xs font-medium text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">+0.2クレジット/記事</span>
+              </label>
+              <p className="text-xs text-gray-500 mt-1">
+                記事生成後、本文の全数値・統計・固有名詞をWebで再検索して自動確認・修正します。<br />
+                Tier1ソース（公式・政府・学術）は1件で確認済み、Tier2（一般サイト）は複数一致で確認済みと判定します。
+              </p>
+              {accuracySaveMsg && (
+                <p className={`text-xs mt-2 ${accuracySaveMsg === '保存しました' ? 'text-green-600' : 'text-red-600'}`}>{accuracySaveMsg}</p>
+              )}
+            </div>
+          </div>
+        </section>
+
         {/* WordPress連携 */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-1">WordPress連携</h2>

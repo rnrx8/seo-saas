@@ -8,6 +8,13 @@ import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
 import MainLayout from '@/app/_components/v2/MainLayout'
 
+const CITATION_STYLE_OPTIONS = [
+  { value: 'none',            label: '出典なし（デフォルト）' },
+  { value: 'bottom_list',     label: '末尾リスト（本文注記なし）' },
+  { value: 'inline_footnote', label: 'インライン注記（※N）＋末尾リスト' },
+  { value: 'h2_block',        label: 'H2末尾ブロック（セクションごと）' },
+]
+
 const EMPTY_FORM = {
   name: '',
   category: '',
@@ -21,6 +28,8 @@ const EMPTY_FORM = {
   must_reference_urls: '',
   never_reference_urls: '',
   company_restriction: 'ai',
+  citation_style: 'none',
+  high_accuracy_mode: false,
 }
 
 const RESTRICTION_OPTIONS = [
@@ -132,6 +141,8 @@ export default function PresetsPage() {
         must_reference_urls: preset.must_reference_urls ?? '',
         never_reference_urls: preset.never_reference_urls ?? '',
         company_restriction: preset.company_restriction ?? 'ai',
+        citation_style: preset.citation_style ?? 'none',
+        high_accuracy_mode: preset.high_accuracy_mode ?? false,
       },
     })
     setError('')
@@ -162,6 +173,8 @@ export default function PresetsPage() {
       must_reference_urls: form.must_reference_urls.trim() || null,
       never_reference_urls: form.never_reference_urls.trim() || null,
       company_restriction: form.company_restriction,
+      citation_style: form.citation_style || 'none',
+      high_accuracy_mode: form.high_accuracy_mode,
       updated_at: new Date().toISOString(),
     }
     if (mode === 'add') {
@@ -376,6 +389,34 @@ export default function PresetsPage() {
                       placeholder="例：リード文の冒頭は必ず読者の悩みから始めること"
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                     />
+                  </div>
+                  <div className="flex items-start gap-3 border rounded-lg px-4 py-3 border-amber-200 bg-amber-50">
+                    <input
+                      type="checkbox"
+                      id="preset-high-accuracy"
+                      checked={modal.form.high_accuracy_mode}
+                      onChange={e => updateForm('high_accuracy_mode', e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-amber-500 cursor-pointer flex-shrink-0"
+                    />
+                    <div>
+                      <label htmlFor="preset-high-accuracy" className="text-sm font-medium text-gray-700 cursor-pointer flex items-center gap-2">
+                        情報精度99.9%モード
+                        <span className="text-xs font-medium text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">+0.2クレジット</span>
+                      </label>
+                      <p className="text-xs text-gray-500 mt-0.5">記事生成後、本文の全数値・統計・固有名詞をWebで再検索して自動確認・修正します。</p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">出典表示スタイル</label>
+                    <select
+                      value={modal.form.citation_style}
+                      onChange={e => updateForm('citation_style', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+                    >
+                      {CITATION_STYLE_OPTIONS.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">参照必須URL</label>

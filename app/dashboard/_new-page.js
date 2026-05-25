@@ -100,6 +100,8 @@ export default function NewDashboardPage() {
   const [selectedCtaIds, setSelectedCtaIds] = useState([])
   const [selectedCompanyIds, setSelectedCompanyIds] = useState([])
   const [selectedSourceIds, setSelectedSourceIds] = useState([])
+  const [citationStyle, setCitationStyle] = useState('none')
+  const [highAccuracyMode, setHighAccuracyMode] = useState(false)
   const [bulkKeywords, setBulkKeywords] = useState('')
 
   // --- App state ---
@@ -138,7 +140,10 @@ export default function NewDashboardPage() {
 
   const fetchProfile = useCallback(async (userId) => {
     const { data } = await getSupabase().from('user_profiles').select('*').eq('id', userId).single()
-    if (data) setProfile(data)
+    if (data) {
+      setProfile(data)
+      setHighAccuracyMode(data.high_accuracy_mode_default ?? false)
+    }
   }, [])
 
   const fetchTheme = useCallback(async (userId) => {
@@ -200,6 +205,8 @@ export default function NewDashboardPage() {
       never_reference_urls: neverReferenceUrls.trim() || null,
       service_id: selectedServiceId ?? null,
       cta_id: selectedCtaIds[0] ?? null,
+      citation_style: citationStyle || 'none',
+      high_accuracy_mode: highAccuracyMode,
     }
   }
 
@@ -216,6 +223,8 @@ export default function NewDashboardPage() {
       setSelectedCtaIds([])
       setSelectedCompanyIds([])
       setSelectedSourceIds([])
+      setCitationStyle('none')
+      setHighAccuracyMode(false)
       return
     }
     setSelectedPresetId(preset.id)
@@ -223,11 +232,12 @@ export default function NewDashboardPage() {
     setShowSavePreset(false)
     if (preset.category != null) setCategory(preset.category ?? '')
     if (preset.delivery_type) setDeliveryType(preset.delivery_type)
-    if (preset.article_purpose) setArticlePurpose(preset.article_purpose)
+    setArticlePurpose(preset.article_purpose ?? '')
     if (preset.word_count_setting) {
       setWordCountType(preset.word_count_setting.startsWith('競合') ? 'relative' : 'absolute')
       setWordCountValue(preset.word_count_setting)
     } else {
+      setWordCountType('absolute')
       setWordCountValue('')
     }
     setTargetAudience(preset.target_audience ?? '')
@@ -235,6 +245,8 @@ export default function NewDashboardPage() {
     setMustReferenceUrls(preset.must_reference_urls ?? '')
     setNeverReferenceUrls(preset.never_reference_urls ?? '')
     setCompanyRestriction('preset')
+    setCitationStyle(preset.citation_style ?? 'none')
+    setHighAccuracyMode(preset.high_accuracy_mode ?? false)
     // プリセットに紐付いたアイテムを自動選択
     setSelectedServiceId(allServices.find(s => s.preset_id === preset.id)?.id ?? null)
     setSelectedCtaIds(allCtas.filter(c => c.preset_id === preset.id).map(c => c.id))
@@ -260,6 +272,8 @@ export default function NewDashboardPage() {
       must_reference_urls: mustReferenceUrls.trim() || null,
       never_reference_urls: neverReferenceUrls.trim() || null,
       company_restriction: companyRestriction === 'category' ? null : companyRestriction,
+      citation_style: citationStyle || 'none',
+      high_accuracy_mode: highAccuracyMode,
     })
     await fetchPresets()
     setSavingPreset(false)
@@ -301,10 +315,17 @@ export default function NewDashboardPage() {
     e.preventDefault()
     if (!keyword.trim() || generating) return
 
-    const creditCost = (deliveryType === 'outline_only' || deliveryType === 'research_only') ? 0.5 : 1
+    const creditCost = ((deliveryType === 'outline_only' || deliveryType === 'research_only') ? 0.5 : 1) + (highAccuracyMode ? 0.2 : 0)
     if (profile?.plan !== 'pro' && profile?.credits_remaining < creditCost) {
       setStatusMessage({ type: 'error', text: 'クレジットが不足しています。設定ページからプランをアップグレードしてください。' })
       return
+    }
+
+    if (highAccuracyMode) {
+      const ok = window.confirm(
+        `【情報精度99.9%モード 有効】\n\n記事内の全事実情報をWebで再検索・再確認し、未確認情報を自動修正します。\n消費クレジット：${creditCost.toFixed(1)}（通常より +0.2）\n\n実行しますか？`
+      )
+      if (!ok) return
     }
 
     setGenerating(true)
@@ -405,6 +426,80 @@ export default function NewDashboardPage() {
 
           <form onSubmit={bulkMode ? handleBulkGenerate : handleGenerate} className="flex flex-col gap-3">
 
+            {/* プリセット選択（常時表示） */}
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2 items-center">
+                <select
+                  value={selectedPresetId ?? ''}
+                  onChange={e => {
+                    const id = e.target.value
+                    if (!id) { applyPreset(null); return }
+                    const preset = presets.find(p => p.id === id)
+                    if (preset) applyPreset(preset)
+                  }}
+                  disabled={generating}
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
+                >
+                  <option value="">プリセットを選択（任意）</option>
+                  {presets.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}{p.category ? ` [${p.category}]` : ''}
+                    </option>
+                  ))}
+                </select>
+                {selectedPresetId && (
+                  <button
+                    type="button"
+                    onClick={() => applyPreset(null)}
+                    disabled={generating}
+                    className="text-xs text-gray-400 hover:text-gray-600 whitespace-nowrap disabled:opacity-50"
+                  >
+                    クリア
+                  </button>
+                )}
+              </div>
+
+              {/* 変更通知 + 新規プリセット登録 */}
+              {presetModified && !showSavePreset && (
+                <div className="flex items-center gap-3 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2.5">
+                  <span className="text-xs text-yellow-700 flex-1">プリセットから設定を変更しました</span>
+                  <button
+                    type="button"
+                    onClick={() => { setSavePresetName(''); setShowSavePreset(true) }}
+                    className="text-xs font-medium text-blue-600 hover:text-blue-700 whitespace-nowrap"
+                  >
+                    ＋ 新規プリセット登録
+                  </button>
+                </div>
+              )}
+              {showSavePreset && (
+                <div className="flex gap-2 items-center bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+                  <input
+                    type="text"
+                    value={savePresetName}
+                    onChange={e => setSavePresetName(e.target.value)}
+                    placeholder="新しいプリセット名"
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveNewPreset}
+                    disabled={savingPreset || !savePresetName.trim()}
+                    className="bg-blue-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {savingPreset ? '保存中...' : '保存'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSavePreset(false)}
+                    className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* 納品物選択 */}
             <div className="flex gap-2">
               {[
@@ -481,6 +576,29 @@ export default function NewDashboardPage() {
               </button>
             </div>
 
+            {/* 情報精度99.9%モード */}
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="high-accuracy-mode"
+                checked={highAccuracyMode}
+                onChange={e => setHighAccuracyMode(e.target.checked)}
+                disabled={generating}
+                className="w-4 h-4 accent-amber-500 cursor-pointer"
+              />
+              <label htmlFor="high-accuracy-mode" className="text-sm text-gray-700 cursor-pointer select-none">
+                情報精度99.9%モード
+              </label>
+              <span className="text-xs font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">+0.2クレジット</span>
+              <span className="relative group inline-flex items-center">
+                <span className="w-4 h-4 rounded-full border border-gray-400 text-gray-400 text-[10px] font-bold flex items-center justify-center cursor-help select-none leading-none">?</span>
+                <span className="absolute left-6 bottom-0 z-20 w-72 p-3 text-xs text-white bg-gray-800 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none leading-relaxed">
+                  記事生成後に、本文内の数値・統計・固有名詞をWebで再検索して再確認します。確認できなかった情報は断言表現を避ける形に自動修正します。<br /><br />
+                  Tier1ソース（公式・政府・学術）は1件で確認済み、Tier2（一般サイト）は複数一致で確認済みと判定します。
+                </span>
+              </span>
+            </div>
+
             {/* 詳細設定トグル */}
             <button
               type="button"
@@ -493,77 +611,6 @@ export default function NewDashboardPage() {
 
             {showAdvanced && (
               <div className="flex flex-col gap-3 pt-2 border-t border-gray-100">
-                {/* プリセット選択 */}
-                <div className="flex gap-2 items-center">
-                  <select
-                    value={selectedPresetId ?? ''}
-                    onChange={e => {
-                      const id = e.target.value
-                      if (!id) { applyPreset(null); return }
-                      const preset = presets.find(p => p.id === id)
-                      if (preset) applyPreset(preset)
-                    }}
-                    disabled={generating}
-                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
-                  >
-                    <option value="">プリセットを選択（任意）</option>
-                    {presets.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}{p.category ? ` [${p.category}]` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  {selectedPresetId && (
-                    <button
-                      type="button"
-                      onClick={() => applyPreset(null)}
-                      className="text-xs text-gray-400 hover:text-gray-600 whitespace-nowrap"
-                    >
-                      クリア
-                    </button>
-                  )}
-                </div>
-
-                {/* 変更通知 + 新規プリセット登録 */}
-                {presetModified && !showSavePreset && (
-                  <div className="flex items-center gap-3 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2.5">
-                    <span className="text-xs text-yellow-700 flex-1">プリセットから設定を変更しました</span>
-                    <button
-                      type="button"
-                      onClick={() => { setSavePresetName(''); setShowSavePreset(true) }}
-                      className="text-xs font-medium text-blue-600 hover:text-blue-700 whitespace-nowrap"
-                    >
-                      ＋ 新規プリセット登録
-                    </button>
-                  </div>
-                )}
-                {showSavePreset && (
-                  <div className="flex gap-2 items-center bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-                    <input
-                      type="text"
-                      value={savePresetName}
-                      onChange={e => setSavePresetName(e.target.value)}
-                      placeholder="新しいプリセット名"
-                      className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleSaveNewPreset}
-                      disabled={savingPreset || !savePresetName.trim()}
-                      className="bg-blue-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
-                    >
-                      {savingPreset ? '保存中...' : '保存'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowSavePreset(false)}
-                      className="text-gray-400 hover:text-gray-600 text-lg leading-none"
-                    >
-                      ×
-                    </button>
-                  </div>
-                )}
-
                 {/* 比較対象企業設定 */}
                 <div className="flex flex-col gap-2">
                   <label className="text-xs font-medium text-gray-500">比較対象企業設定</label>
