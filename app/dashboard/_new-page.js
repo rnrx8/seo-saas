@@ -26,10 +26,11 @@ function calcSimilarity(kw1, kw2) {
 
 function StatusBadge({ status }) {
   const map = {
-    queued:  { bg: '#fef9c3', color: '#854d0e', label: '待機中' },
-    running: { bg: '#dbeafe', color: '#1e40af', label: '生成中' },
-    done:    { bg: '#dcfce7', color: '#166534', label: '完了' },
-    failed:  { bg: '#fee2e2', color: '#991b1b', label: '失敗' },
+    queued:    { bg: '#fef9c3', color: '#854d0e', label: '待機中' },
+    running:   { bg: '#dbeafe', color: '#1e40af', label: '生成中' },
+    done:      { bg: '#dcfce7', color: '#166534', label: '完了' },
+    failed:    { bg: '#fee2e2', color: '#991b1b', label: '失敗' },
+    cancelled: { bg: '#f3f4f6', color: '#6b7280', label: '停止済み' },
   }
   const s = map[status] ?? { bg: '#f3f4f6', color: '#6b7280', label: status }
   return (
@@ -111,6 +112,7 @@ export default function NewDashboardPage() {
   const [generating, setGenerating] = useState(false)
   const [currentStep, setCurrentStep] = useState(null)
   const [pollingId, setPollingId] = useState(null)
+  const [pollingJobId, setPollingJobId] = useState(null)
   const [statusMessage, setStatusMessage] = useState(null)
   const [authChecked, setAuthChecked] = useState(false)
 
@@ -381,18 +383,46 @@ export default function NewDashboardPage() {
       } else if (data?.status === 'running') {
         queuedSince = Date.now()
       } else if (data?.status === 'done') {
-        clearInterval(id); setPollingId(null); setGenerating(false); setCurrentStep(null); fetchJobs()
+        clearInterval(id); setPollingId(null); setPollingJobId(null); setGenerating(false); setCurrentStep(null); fetchJobs()
         if (profile?.plan !== 'pro') {
           await getSupabase().from('user_profiles').update({ credits_remaining: profile.credits_remaining - creditCost }).eq('id', profile.id)
           await fetchProfile(profile.id)
         }
         setStatusMessage({ type: 'success', text: '生成完了！' })
       } else if (data?.status === 'failed') {
-        clearInterval(id); setPollingId(null); setGenerating(false); setCurrentStep(null); fetchJobs()
+        clearInterval(id); setPollingId(null); setPollingJobId(null); setGenerating(false); setCurrentStep(null); fetchJobs()
         setStatusMessage({ type: 'error', text: '生成に失敗しました' })
       }
     }, 5000)
     setPollingId(id)
+    setPollingJobId(job.id)
+  }
+
+  async function handleStop() {
+    if (pollingId) clearInterval(pollingId)
+    setPollingId(null)
+
+    const partialCost =
+      !currentStep ? 0 :
+      ['serp', 'search_intent'].includes(currentStep) ? 0.2 :
+      ['fact_sheet', 'outline'].includes(currentStep) ? 0.5 :
+      1.0
+
+    if (pollingJobId) {
+      await getSupabase().from('jobs').update({ status: 'cancelled' }).eq('id', pollingJobId)
+      setPollingJobId(null)
+    }
+
+    if (profile?.plan !== 'pro' && partialCost > 0) {
+      const newCredits = Math.max(0, (profile?.credits_remaining ?? 0) - partialCost)
+      await getSupabase().from('user_profiles').update({ credits_remaining: newCredits }).eq('id', profile.id)
+      fetchProfile(profile.id)
+    }
+
+    setGenerating(false)
+    setCurrentStep(null)
+    fetchJobs()
+    setStatusMessage({ type: 'info', text: `生成を停止しました（-${partialCost}クレジット）` })
   }
 
   if (!authChecked) return null
@@ -574,6 +604,15 @@ export default function NewDashboardPage() {
               >
                 {generating ? (bulkMode ? '登録中...' : '生成中...') : (bulkMode ? '一括登録' : '記事生成')}
               </button>
+              {generating && !bulkMode && (
+                <button
+                  type="button"
+                  onClick={handleStop}
+                  className="border border-red-200 text-red-600 hover:bg-red-50 font-medium px-4 py-3 rounded-xl text-sm transition-colors whitespace-nowrap self-start"
+                >
+                  停止
+                </button>
+              )}
             </div>
 
             {/* 情報精度99.9%モード */}
@@ -724,6 +763,19 @@ export default function NewDashboardPage() {
                   disabled={generating}
                   className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50"
                 />
+
+                {/* 出典・注釈スタイル */}
+                <select
+                  value={citationStyle}
+                  onChange={e => { setCitationStyle(e.target.value); markModified() }}
+                  disabled={generating}
+                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
+                >
+                  <option value="none">出典なし</option>
+                  <option value="bottom_list">記事末尾に出典一覧</option>
+                  <option value="inline_footnote">本文内に※注釈＋末尾一覧</option>
+                  <option value="h2_block">H2末尾に参考情報ブロック</option>
+                </select>
 
                 {/* 自由記述プロンプト */}
                 <textarea

@@ -8,6 +8,24 @@ import { marked } from 'marked'
 import { getSupabase } from '@/lib/supabase'
 import MainLayout from '@/app/_components/v2/MainLayout'
 
+function parseOutlineForDisplay(outlineText) {
+  if (!outlineText) return { titlePatterns: null, summarySection: '', mainOutline: '' }
+
+  function extractAndRemove(text, keyword) {
+    const re = new RegExp(`###[^\\n]*${keyword}[^\\n]*\\n[\\s\\S]*?(?=\\n###|\\n##[^#]|$)`)
+    const m = text.match(re)
+    if (!m) return { extracted: null, remaining: text }
+    return { extracted: m[0].trim(), remaining: text.replace(m[0], '').replace(/\n{3,}/g, '\n\n') }
+  }
+
+  const { extracted: titlePatterns, remaining: r1 } = extractAndRemove(outlineText, 'タイトル案')
+  const { extracted: wordCountSection, remaining: r2 } = extractAndRemove(r1, '目標文字数')
+  const { extracted: leadSection, remaining: r3 } = extractAndRemove(r2, 'リード文')
+
+  const summarySection = [wordCountSection, leadSection].filter(Boolean).join('\n\n')
+  return { titlePatterns, summarySection, mainOutline: r3.trim() }
+}
+
 function stripInternalPreamble(text) {
   if (!text) return text
   // Strip internal "最終確認" blocks that the pipeline may prepend to the article.
@@ -135,6 +153,11 @@ export default function NewArticlePage({ params }) {
     return (articleText.match(/^## [^#]/gm) ?? []).length
   }, [articleText])
 
+  const { titlePatterns, summarySection, mainOutline } = useMemo(
+    () => parseOutlineForDisplay(artifacts['outline']),
+    [artifacts['outline']]
+  )
+
   return (
     <MainLayout profile={profile} theme={theme}>
       <div className="flex h-full">
@@ -192,11 +215,19 @@ export default function NewArticlePage({ params }) {
             ) : (
               <>
                 {activeTab === 'article' && (
-                  <ArticleView
-                    markdown={articleText}
-                    onOpenPanel={() => setShowPanel(true)}
-                    onApplyReorder={(newMd) => setArtifacts(prev => ({ ...prev, article: newMd }))}
-                  />
+                  <div>
+                    {titlePatterns && (
+                      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4">
+                        <p className="text-xs font-semibold text-gray-500 mb-2">タイトル案（構成案より）</p>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{titlePatterns}</ReactMarkdown>
+                      </div>
+                    )}
+                    <ArticleView
+                      markdown={articleText}
+                      onOpenPanel={() => setShowPanel(true)}
+                      onApplyReorder={(newMd) => setArtifacts(prev => ({ ...prev, article: newMd }))}
+                    />
+                  </div>
                 )}
                 {activeTab === 'search_intent' && (
                   <article className="max-w-none prose">
@@ -206,11 +237,19 @@ export default function NewArticlePage({ params }) {
                   </article>
                 )}
                 {activeTab === 'outline' && (
-                  <article className="max-w-none">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
-                      {artifacts['outline'] ?? '（データなし）'}
-                    </ReactMarkdown>
-                  </article>
+                  <div className="max-w-none">
+                    {summarySection && (
+                      <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-6">
+                        <p className="text-xs font-semibold text-blue-700 mb-3">構成サマリー</p>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{summarySection}</ReactMarkdown>
+                      </div>
+                    )}
+                    <article>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
+                        {mainOutline || artifacts['outline'] || '（データなし）'}
+                      </ReactMarkdown>
+                    </article>
+                  </div>
                 )}
                 {activeTab === 'fact_sheet' && (
                   <article className="max-w-none">
@@ -223,7 +262,7 @@ export default function NewArticlePage({ params }) {
                   <PaaLsiView content={artifacts['serp']} />
                 )}
                 {activeTab === 'serp' && (
-                  <SerpView content={artifacts['serp']} queryAttrs={artifacts['query_attrs']} />
+                  <SerpView content={artifacts['serp']} queryAttrs={artifacts['query_attrs']} wordCountSetting={job?.word_count_setting} />
                 )}
               </>
             )}
@@ -431,11 +470,11 @@ function PaaLsiView({ content }) {
   )
 }
 
-function QueryAttrsCard({ content }) {
-  if (!content) return null
+function QueryAttrsCard({ content, wordCountSetting }) {
+  if (!content && !wordCountSetting) return null
   let attrs = null
-  try { attrs = JSON.parse(content) } catch { return null }
-  if (!attrs) return null
+  if (content) try { attrs = JSON.parse(content) } catch {}
+  if (!attrs && !wordCountSetting) return null
 
   const STAGE_COLOR = {
     '情報収集': 'bg-blue-100 text-blue-800',
@@ -453,50 +492,60 @@ function QueryAttrsCard({ content }) {
     <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-6">
       <h3 className="text-sm font-semibold text-blue-800 mb-3">クエリ属性分析</h3>
       <div className="grid grid-cols-2 gap-4 text-sm">
-        <div>
-          <p className="text-xs text-gray-500 mb-1">性別傾向</p>
-          <p className="font-medium text-gray-800">{attrs.gender_tendency ?? '—'}</p>
-        </div>
-        <div>
-          <p className="text-xs text-gray-500 mb-1">推定年齢層</p>
-          <p className="font-medium text-gray-800">{attrs.age_range ?? '—'}</p>
-        </div>
-        <div>
-          <p className="text-xs text-gray-500 mb-1">検索ステージ</p>
-          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLOR[attrs.searcher_stage] ?? 'bg-gray-100 text-gray-700'}`}>
-            {attrs.searcher_stage ?? '—'}
-          </span>
-        </div>
-        <div>
-          <p className="text-xs text-gray-500 mb-1">競合レベル</p>
-          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${COMPETITION_COLOR[attrs.competition_level] ?? 'bg-gray-100 text-gray-700'}`}>
-            {attrs.competition_level ?? '—'}
-          </span>
-        </div>
-        {attrs.content_types?.length > 0 && (
-          <div className="col-span-2">
-            <p className="text-xs text-gray-500 mb-1">コンテンツタイプ傾向</p>
-            <div className="flex flex-wrap gap-1">
-              {attrs.content_types.map((t, i) => (
-                <span key={i} className="bg-white border border-gray-200 rounded-full px-2 py-0.5 text-xs text-gray-700">{t}</span>
-              ))}
+        {attrs && (
+          <>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">性別傾向</p>
+              <p className="font-medium text-gray-800">{attrs.gender_tendency ?? '—'}</p>
             </div>
-          </div>
-        )}
-        {attrs.key_concerns?.length > 0 && (
-          <div className="col-span-2">
-            <p className="text-xs text-gray-500 mb-1">読者の主な関心事</p>
-            <div className="flex flex-wrap gap-1">
-              {attrs.key_concerns.map((c, i) => (
-                <span key={i} className="bg-white border border-blue-200 rounded-full px-2 py-0.5 text-xs text-blue-700">{c}</span>
-              ))}
+            <div>
+              <p className="text-xs text-gray-500 mb-1">推定年齢層</p>
+              <p className="font-medium text-gray-800">{attrs.age_range ?? '—'}</p>
             </div>
-          </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">検索ステージ</p>
+              <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLOR[attrs.searcher_stage] ?? 'bg-gray-100 text-gray-700'}`}>
+                {attrs.searcher_stage ?? '—'}
+              </span>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">競合レベル</p>
+              <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${COMPETITION_COLOR[attrs.competition_level] ?? 'bg-gray-100 text-gray-700'}`}>
+                {attrs.competition_level ?? '—'}
+              </span>
+            </div>
+            {attrs.content_types?.length > 0 && (
+              <div className="col-span-2">
+                <p className="text-xs text-gray-500 mb-1">コンテンツタイプ傾向</p>
+                <div className="flex flex-wrap gap-1">
+                  {attrs.content_types.map((t, i) => (
+                    <span key={i} className="bg-white border border-gray-200 rounded-full px-2 py-0.5 text-xs text-gray-700">{t}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {attrs.key_concerns?.length > 0 && (
+              <div className="col-span-2">
+                <p className="text-xs text-gray-500 mb-1">読者の主な関心事</p>
+                <div className="flex flex-wrap gap-1">
+                  {attrs.key_concerns.map((c, i) => (
+                    <span key={i} className="bg-white border border-blue-200 rounded-full px-2 py-0.5 text-xs text-blue-700">{c}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {attrs.notes && (
+              <div className="col-span-2">
+                <p className="text-xs text-gray-500 mb-1">特記事項</p>
+                <p className="text-xs text-gray-700">{attrs.notes}</p>
+              </div>
+            )}
+          </>
         )}
-        {attrs.notes && (
-          <div className="col-span-2">
-            <p className="text-xs text-gray-500 mb-1">特記事項</p>
-            <p className="text-xs text-gray-700">{attrs.notes}</p>
+        {wordCountSetting && (
+          <div className={`col-span-2 ${attrs ? 'pt-3 mt-1 border-t border-blue-200' : ''}`}>
+            <p className="text-xs text-gray-500 mb-1">目標文字数設定</p>
+            <p className="font-medium text-gray-800">{wordCountSetting}</p>
           </div>
         )}
       </div>
@@ -531,7 +580,7 @@ function HeadingsList({ headings, fetchStatus }) {
   )
 }
 
-function SerpView({ content, queryAttrs }) {
+function SerpView({ content, queryAttrs, wordCountSetting }) {
   if (!content) return <p className="text-gray-400 text-sm">（データなし）</p>
 
   let organicResults = null
@@ -554,7 +603,7 @@ function SerpView({ content, queryAttrs }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <QueryAttrsCard content={queryAttrs} />
+      <QueryAttrsCard content={queryAttrs} wordCountSetting={wordCountSetting} />
       {organicResults.map((item, i) => {
         const url = item.link ?? item.url ?? ''
         const heading = headingsMap[url]
@@ -569,7 +618,12 @@ function SerpView({ content, queryAttrs }) {
                 {item.snippet && <p className="text-gray-600 text-sm mt-1 leading-relaxed">{item.snippet}</p>}
                 {heading && <HeadingsList headings={heading.headings} fetchStatus={heading.fetch_status} />}
               </div>
-              <span className="text-xs text-gray-400 shrink-0">#{i + 1}</span>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <span className="text-xs text-gray-400">#{i + 1}</span>
+                {heading?.word_count > 0 && (
+                  <span className="text-xs text-gray-400">{heading.word_count.toLocaleString()}字</span>
+                )}
+              </div>
             </div>
           </div>
         )
