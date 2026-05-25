@@ -20,53 +20,6 @@ const NAV_ITEMS = [
     ),
   },
   {
-    key: 'articles',
-    label: '生成済み記事',
-    href: '/dashboard',
-    enabled: true,
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5 flex-shrink-0">
-        <path d="M9 12h6M9 8h6M9 16h4M5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z" />
-      </svg>
-    ),
-  },
-  {
-    key: 'keyword',
-    label: 'キーワード調査',
-    href: null,
-    enabled: false,
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5 flex-shrink-0">
-        <circle cx="11" cy="11" r="7" />
-        <path d="M21 21l-4.35-4.35" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    key: 'competitor',
-    label: '競合分析',
-    href: null,
-    enabled: false,
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5 flex-shrink-0">
-        <path d="M3 12l5-5 4 4 5-5 4 4" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
-    key: 'audit',
-    label: 'コンテンツ監査',
-    href: null,
-    enabled: false,
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5 flex-shrink-0">
-        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
-        <rect x="9" y="3" width="6" height="4" rx="1" />
-        <path d="M9 12l2 2 4-4" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
     key: 'projects',
     label: 'プロジェクト',
     href: null,
@@ -124,7 +77,6 @@ export default function Sidebar({ profile, theme }) {
     // ダッシュボードと生成済み記事はどちらも /dashboard だが、
     // article ページでは「生成済み記事」を active に、dashboard では「ダッシュボード」を active にする
     if (item.key === 'dashboard') return pathname === '/dashboard'
-    if (item.key === 'articles') return pathname?.startsWith('/article')
     if (item.key === 'bugs') return pathname === '/bugs'
     return pathname === item.href
   }
