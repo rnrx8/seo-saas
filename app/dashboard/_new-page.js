@@ -286,12 +286,6 @@ export default function NewDashboardPage() {
   return (
     <MainLayout profile={profile} theme={theme}>
       <div className="px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">SEO記事生成ダッシュボード</h1>
-          <p className="text-gray-500 text-sm mt-1">キーワードを入力して、SEO最適化された記事を自動生成します</p>
-        </div>
-
         {/* Generate form card */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
           <div className="flex items-center gap-2 mb-4">
