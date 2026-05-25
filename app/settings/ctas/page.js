@@ -2,26 +2,31 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
+import MainLayout from '@/app/_components/v2/MainLayout'
 
 const EMPTY_FORM = { name: '', category: '', body: '', button_text: '', url: '' }
 
 export default function CtasPage() {
   const router = useRouter()
+  const [profile, setProfile] = useState(null)
+  const [theme, setTheme] = useState(null)
   const [ctas, setCtas] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null) // null | { mode: 'add'|'edit', form: {...} }
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    getSupabase().auth.getSession().then(({ data: { session } }) => {
-      if (!session) { router.replace('/login'); return }
-      fetchCtas()
-    })
+  const fetchProfile = useCallback(async (userId) => {
+    const { data } = await getSupabase().from('user_profiles').select('*').eq('id', userId).single()
+    if (data) setProfile(data)
+  }, [])
+
+  const fetchTheme = useCallback(async (userId) => {
+    const { data } = await getSupabase().from('tenant_themes').select('*').eq('tenant_id', userId).maybeSingle()
+    if (data) setTheme(data)
   }, [])
 
   async function fetchCtas() {
@@ -29,6 +34,15 @@ export default function CtasPage() {
     setCtas(data ?? [])
     setLoading(false)
   }
+
+  useEffect(() => {
+    getSupabase().auth.getSession().then(({ data: { session } }) => {
+      if (!session) { router.replace('/login'); return }
+      fetchProfile(session.user.id)
+      fetchTheme(session.user.id)
+      fetchCtas()
+    })
+  }, [fetchProfile, fetchTheme])
 
   function openAdd() {
     setModal({ mode: 'add', form: { ...EMPTY_FORM } })
@@ -85,20 +99,8 @@ export default function CtasPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-800">SEO記事生成</h1>
-        <nav className="flex items-center gap-6 text-sm text-gray-500">
-          <Link href="/dashboard" className="hover:text-gray-700">ダッシュボード</Link>
-          <Link href="/settings" className="hover:text-gray-700">プラン設定</Link>
-          <Link href="/settings/services" className="hover:text-gray-700">サービス管理</Link>
-          <Link href="/settings/ctas" className="font-medium text-blue-600">CTA管理</Link>
-          <Link href="/settings/companies" className="hover:text-gray-700">企業管理</Link>
-          <Link href="/settings/sources" className="hover:text-gray-700">一次情報</Link>
-        </nav>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-8 py-8">
+    <MainLayout profile={profile} theme={theme}>
+      <div className="max-w-4xl mx-auto px-8 py-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-gray-800">CTA管理</h2>
           <button
@@ -154,7 +156,7 @@ export default function CtasPage() {
             ))}
           </div>
         )}
-      </main>
+      </div>
 
       {/* Modal */}
       {modal && (
@@ -242,6 +244,6 @@ export default function CtasPage() {
           </div>
         </div>
       )}
-    </div>
+    </MainLayout>
   )
 }
