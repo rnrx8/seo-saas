@@ -94,8 +94,12 @@ export default function NewDashboardPage() {
   // --- Linked items state ---
   const [allServices, setAllServices] = useState([])
   const [allCtas, setAllCtas] = useState([])
+  const [allCompanies, setAllCompanies] = useState([])
+  const [allSources, setAllSources] = useState([])
   const [selectedServiceId, setSelectedServiceId] = useState(null)
-  const [selectedCtaId, setSelectedCtaId] = useState(null)
+  const [selectedCtaIds, setSelectedCtaIds] = useState([])
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState([])
+  const [selectedSourceIds, setSelectedSourceIds] = useState([])
   const [bulkKeywords, setBulkKeywords] = useState('')
 
   // --- App state ---
@@ -124,6 +128,8 @@ export default function NewDashboardPage() {
         fetchPresets()
         fetchAllServices()
         fetchAllCtas()
+        fetchAllCompanies()
+        fetchAllSources()
       }
     })
   }, [])
@@ -155,6 +161,16 @@ export default function NewDashboardPage() {
     if (data) setAllCtas(data)
   }, [])
 
+  const fetchAllCompanies = useCallback(async () => {
+    const { data } = await getSupabase().from('company_settings').select('id, name, category, preset_id').order('recommend_level', { ascending: false })
+    if (data) setAllCompanies(data)
+  }, [])
+
+  const fetchAllSources = useCallback(async () => {
+    const { data } = await getSupabase().from('primary_sources').select('id, title, category, preset_id').order('created_at', { ascending: false })
+    if (data) setAllSources(data)
+  }, [])
+
   const fetchJobs = useCallback(async () => {
     const { data, error } = await getSupabase()
       .from('jobs')
@@ -183,7 +199,7 @@ export default function NewDashboardPage() {
       must_reference_urls: mustReferenceUrls.trim() || null,
       never_reference_urls: neverReferenceUrls.trim() || null,
       service_id: selectedServiceId ?? null,
-      cta_id: selectedCtaId ?? null,
+      cta_id: selectedCtaIds[0] ?? null,
     }
   }
 
@@ -196,6 +212,10 @@ export default function NewDashboardPage() {
       setSelectedPresetId(null)
       setPresetModified(false)
       setShowSavePreset(false)
+      setSelectedServiceId(null)
+      setSelectedCtaIds([])
+      setSelectedCompanyIds([])
+      setSelectedSourceIds([])
       return
     }
     setSelectedPresetId(preset.id)
@@ -214,13 +234,12 @@ export default function NewDashboardPage() {
     setCustomPrompt(preset.custom_prompt ?? '')
     setMustReferenceUrls(preset.must_reference_urls ?? '')
     setNeverReferenceUrls(preset.never_reference_urls ?? '')
-    // 企業制限は「プリセット設定に従う」のまま（resolveJobParamsでpresetを参照）
     setCompanyRestriction('preset')
-    // プリセットに紐付いたサービス・CTAを自動選択
-    const linkedSvc = allServices.find(s => s.preset_id === preset.id)
-    const linkedCta = allCtas.find(c => c.preset_id === preset.id)
-    setSelectedServiceId(linkedSvc?.id ?? null)
-    setSelectedCtaId(linkedCta?.id ?? null)
+    // プリセットに紐付いたアイテムを自動選択
+    setSelectedServiceId(allServices.find(s => s.preset_id === preset.id)?.id ?? null)
+    setSelectedCtaIds(allCtas.filter(c => c.preset_id === preset.id).map(c => c.id))
+    setSelectedCompanyIds(allCompanies.filter(c => c.preset_id === preset.id).map(c => c.id))
+    setSelectedSourceIds(allSources.filter(s => s.preset_id === preset.id).map(s => s.id))
   }
 
   async function handleSaveNewPreset() {
@@ -545,18 +564,41 @@ export default function NewDashboardPage() {
                   </div>
                 )}
 
-                {/* 企業制限 */}
-                <select
-                  value={companyRestriction}
-                  onChange={e => { setCompanyRestriction(e.target.value); markModified() }}
-                  disabled={generating}
-                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
-                >
-                  <option value="preset">プリセット設定に従う</option>
-                  <option value="registered_only">登録企業のみ</option>
-                  <option value="registered_plus">登録企業＋AIおすすめ</option>
-                  <option value="ai">AIおまかせ</option>
-                </select>
+                {/* 比較対象企業設定 */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-medium text-gray-500">比較対象企業設定</label>
+                  <select
+                    value={companyRestriction}
+                    onChange={e => { setCompanyRestriction(e.target.value); markModified() }}
+                    disabled={generating}
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
+                  >
+                    <option value="preset">プリセット設定に従う</option>
+                    <option value="registered_only">選択企業のみ</option>
+                    <option value="registered_plus">選択企業＋AIおすすめ</option>
+                    <option value="ai">AIおまかせ</option>
+                  </select>
+                  {(companyRestriction === 'registered_only' || companyRestriction === 'registered_plus') && allCompanies.length > 0 && (
+                    <div className="flex flex-col gap-1.5 pl-3 border-l-2 border-gray-100 max-h-40 overflow-y-auto">
+                      {allCompanies.map(company => (
+                        <label key={company.id} className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={selectedCompanyIds.includes(company.id)}
+                            onChange={e => {
+                              setSelectedCompanyIds(prev => e.target.checked ? [...prev, company.id] : prev.filter(id => id !== company.id))
+                              markModified()
+                            }}
+                            disabled={generating}
+                            className="accent-blue-600 flex-shrink-0"
+                          />
+                          <span className="text-sm text-gray-700">{company.name}</span>
+                          {company.category && <span className="text-xs text-gray-400">({company.category})</span>}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 {/* 記事目的 */}
                 <div className="flex gap-3">
@@ -666,35 +708,78 @@ export default function NewDashboardPage() {
                   />
                 </div>
 
-                {/* サービス・CTA参照 */}
-                {(allServices.length > 0 || allCtas.length > 0) && (
-                  <div className="flex flex-col gap-2 pt-1 border-t border-gray-100">
-                    <p className="text-xs font-medium text-gray-500">サービス・CTA（任意）</p>
+                {/* サービス・CTA・一次情報 */}
+                {(allServices.length > 0 || allCtas.length > 0 || allSources.length > 0) && (
+                  <div className="flex flex-col gap-3 pt-2 border-t border-gray-100">
+
+                    {/* サービス（ラジオ） */}
                     {allServices.length > 0 && (
-                      <select
-                        value={selectedServiceId ?? ''}
-                        onChange={e => { setSelectedServiceId(e.target.value || null); markModified() }}
-                        disabled={generating}
-                        className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
-                      >
-                        <option value="">サービスを選択（任意）</option>
-                        {allServices.map(s => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                      </select>
+                      <div className="flex flex-col gap-1.5">
+                        <p className="text-xs font-medium text-gray-500">サービス</p>
+                        <div className="flex flex-col gap-1 pl-3 border-l-2 border-gray-100">
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input type="radio" name="service_radio" value="" checked={!selectedServiceId} onChange={() => { setSelectedServiceId(null); markModified() }} disabled={generating} className="accent-blue-600" />
+                            <span className="text-sm text-gray-500">指定なし</span>
+                          </label>
+                          {allServices.map(svc => (
+                            <label key={svc.id} className="flex items-center gap-2 cursor-pointer select-none">
+                              <input type="radio" name="service_radio" value={svc.id} checked={selectedServiceId === svc.id} onChange={() => { setSelectedServiceId(svc.id); markModified() }} disabled={generating} className="accent-blue-600" />
+                              <span className="text-sm text-gray-700">{svc.name}</span>
+                              {svc.category && <span className="text-xs text-gray-400">({svc.category})</span>}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
                     )}
+
+                    {/* CTA（チェックボックス） */}
                     {allCtas.length > 0 && (
-                      <select
-                        value={selectedCtaId ?? ''}
-                        onChange={e => { setSelectedCtaId(e.target.value || null); markModified() }}
-                        disabled={generating}
-                        className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
-                      >
-                        <option value="">CTAを選択（任意）</option>
-                        {allCtas.map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
+                      <div className="flex flex-col gap-1.5">
+                        <p className="text-xs font-medium text-gray-500">CTA</p>
+                        <div className="flex flex-col gap-1 pl-3 border-l-2 border-gray-100">
+                          {allCtas.map(cta => (
+                            <label key={cta.id} className="flex items-center gap-2 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={selectedCtaIds.includes(cta.id)}
+                                onChange={e => {
+                                  setSelectedCtaIds(prev => e.target.checked ? [...prev, cta.id] : prev.filter(id => id !== cta.id))
+                                  markModified()
+                                }}
+                                disabled={generating}
+                                className="accent-blue-600"
+                              />
+                              <span className="text-sm text-gray-700">{cta.name}</span>
+                              {cta.category && <span className="text-xs text-gray-400">({cta.category})</span>}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 一次情報（チェックボックス） */}
+                    {allSources.length > 0 && (
+                      <div className="flex flex-col gap-1.5">
+                        <p className="text-xs font-medium text-gray-500">一次情報</p>
+                        <div className="flex flex-col gap-1 pl-3 border-l-2 border-gray-100 max-h-40 overflow-y-auto">
+                          {allSources.map(src => (
+                            <label key={src.id} className="flex items-center gap-2 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={selectedSourceIds.includes(src.id)}
+                                onChange={e => {
+                                  setSelectedSourceIds(prev => e.target.checked ? [...prev, src.id] : prev.filter(id => id !== src.id))
+                                  markModified()
+                                }}
+                                disabled={generating}
+                                className="accent-blue-600"
+                              />
+                              <span className="text-sm text-gray-700">{src.title}</span>
+                              {src.category && <span className="text-xs text-gray-400">({src.category})</span>}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { getSupabase } from '@/lib/supabase'
@@ -65,6 +66,7 @@ const NAV_ITEMS = [
 export default function Sidebar({ profile, theme }) {
   const router = useRouter()
   const pathname = usePathname()
+  const [presetOpen, setPresetOpen] = useState(true)
 
   const sidebarBg = theme?.sidebar_bg || '#0c1832'
   const primaryColor = theme?.primary_color || '#2563eb'
@@ -116,17 +118,39 @@ export default function Sidebar({ profile, theme }) {
         {NAV_ITEMS.map((item) => {
           // セクションヘッダー
           if (item.type === 'section') {
+            if (item.key === 'section_preset') {
+              const anyActive = NAV_ITEMS.filter(i => i.type === 'sublink').some(i => isActive(i))
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setPresetOpen(v => !v)}
+                  className="flex items-center justify-between px-3 pt-5 pb-1 w-full group"
+                >
+                  <span className={`text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+                    anyActive ? 'text-white/60' : 'text-white/30 group-hover:text-white/50'
+                  }`}>
+                    {item.label}
+                  </span>
+                  <svg
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}
+                    className={`w-3 h-3 text-white/30 group-hover:text-white/50 transition-transform ${presetOpen ? '' : '-rotate-90'}`}
+                  >
+                    <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              )
+            }
             return (
               <div key={item.key} className="px-3 pt-5 pb-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-white/30">
-                  {item.label}
-                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-white/30">{item.label}</span>
               </div>
             )
           }
 
           // サブリンク（インデント・アイコンなし）
           if (item.type === 'sublink') {
+            if (!presetOpen) return null
             if (!item.enabled) {
               return (
                 <div key={item.key} className="flex items-center pl-6 pr-3 py-2 rounded-lg text-xs text-white/20 cursor-not-allowed select-none">
