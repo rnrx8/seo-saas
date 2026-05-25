@@ -289,16 +289,6 @@ export default function PresetsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">記事目的</label>
-                    <input
-                      type="text"
-                      value={modal.form.purpose_filter}
-                      onChange={e => updateForm('purpose_filter', e.target.value)}
-                      placeholder="例：アフィリエイト、SEO強化、ブランディング"
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">サイトURL（将来対応）</label>
                     <input
                       type="text"
