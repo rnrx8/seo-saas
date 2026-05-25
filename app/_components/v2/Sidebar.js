@@ -4,9 +4,11 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { getSupabase } from '@/lib/supabase'
 
+// type: 'link' | 'section' | 'sublink'
 const NAV_ITEMS = [
   {
     key: 'dashboard',
+    type: 'link',
     label: 'ダッシュボード',
     href: '/dashboard',
     enabled: true,
@@ -21,6 +23,7 @@ const NAV_ITEMS = [
   },
   {
     key: 'projects',
+    type: 'link',
     label: 'プロジェクト',
     href: null,
     enabled: false,
@@ -32,6 +35,7 @@ const NAV_ITEMS = [
   },
   {
     key: 'bugs',
+    type: 'link',
     label: 'バグ管理',
     href: '/bugs',
     enabled: true,
@@ -43,15 +47,56 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
+
+  // ── 生成プリセット セクション ──
+  { key: 'section_preset', type: 'section', label: '生成プリセット' },
   {
-    key: 'settings',
-    label: '設定',
+    key: 'presets',
+    type: 'sublink',
+    label: 'プリセット一覧',
+    href: '/settings/presets',
+    enabled: true,
+  },
+  {
+    key: 'services',
+    type: 'sublink',
+    label: 'サービス管理',
+    href: '/settings/services',
+    enabled: true,
+  },
+  {
+    key: 'ctas',
+    type: 'sublink',
+    label: 'CTA管理',
+    href: '/settings/ctas',
+    enabled: true,
+  },
+  {
+    key: 'companies',
+    type: 'sublink',
+    label: '企業管理',
+    href: '/settings/companies',
+    enabled: true,
+  },
+  {
+    key: 'sources',
+    type: 'sublink',
+    label: '一次情報',
+    href: '/settings/sources',
+    enabled: true,
+  },
+
+  // ── アカウント ──
+  {
+    key: 'account',
+    type: 'link',
+    label: 'アカウント',
     href: '/settings',
     enabled: true,
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5 flex-shrink-0">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -73,11 +118,10 @@ export default function Sidebar({ profile, theme }) {
   }
 
   function isActive(item) {
-    if (!item.enabled || !item.href) return false
-    // ダッシュボードと生成済み記事はどちらも /dashboard だが、
-    // article ページでは「生成済み記事」を active に、dashboard では「ダッシュボード」を active にする
+    if (!item.href) return false
     if (item.key === 'dashboard') return pathname === '/dashboard'
-    if (item.key === 'bugs') return pathname === '/bugs'
+    if (item.key === 'account') return pathname === '/settings'
+    if (item.type === 'sublink') return pathname.startsWith(item.href)
     return pathname === item.href
   }
 
@@ -110,8 +154,46 @@ export default function Sidebar({ profile, theme }) {
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5 overflow-y-auto">
         {NAV_ITEMS.map((item) => {
-          const active = isActive(item)
+          // セクションヘッダー
+          if (item.type === 'section') {
+            return (
+              <div key={item.key} className="px-3 pt-5 pb-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-white/30">
+                  {item.label}
+                </span>
+              </div>
+            )
+          }
 
+          // サブリンク（インデント・アイコンなし）
+          if (item.type === 'sublink') {
+            if (!item.enabled) {
+              return (
+                <div key={item.key} className="flex items-center pl-6 pr-3 py-2 rounded-lg text-xs text-white/20 cursor-not-allowed select-none">
+                  {item.label}
+                </div>
+              )
+            }
+            const active = isActive(item)
+            return (
+              <Link
+                key={item.key}
+                href={item.href}
+                className={`flex items-center pl-6 pr-3 py-2 rounded-lg text-xs transition-colors ${
+                  active ? 'text-white font-medium' : 'text-white/50 hover:text-white/80 hover:bg-white/8'
+                }`}
+                style={active ? { backgroundColor: `${primaryColor}33` } : {}}
+              >
+                <span
+                  className="w-1 h-1 rounded-full mr-2.5 flex-shrink-0"
+                  style={{ backgroundColor: active ? primaryColor : 'rgba(255,255,255,0.3)' }}
+                />
+                {item.label}
+              </Link>
+            )
+          }
+
+          // 通常リンク
           if (!item.enabled) {
             return (
               <div
@@ -124,14 +206,13 @@ export default function Sidebar({ profile, theme }) {
             )
           }
 
+          const active = isActive(item)
           return (
             <Link
               key={item.key}
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                active
-                  ? 'text-white font-medium'
-                  : 'text-white/60 hover:text-white/90 hover:bg-white/8'
+                active ? 'text-white font-medium' : 'text-white/60 hover:text-white/90 hover:bg-white/8'
               }`}
               style={active ? { backgroundColor: primaryColor } : {}}
             >
