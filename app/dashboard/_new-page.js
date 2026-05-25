@@ -84,6 +84,14 @@ export default function NewDashboardPage() {
   const [showUrlFields, setShowUrlFields] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [bulkMode, setBulkMode] = useState(false)
+
+  // --- Preset state ---
+  const [presets, setPresets] = useState([])
+  const [selectedPresetId, setSelectedPresetId] = useState(null)
+  const [presetModified, setPresetModified] = useState(false)
+  const [showSavePreset, setShowSavePreset] = useState(false)
+  const [savePresetName, setSavePresetName] = useState('')
+  const [savingPreset, setSavingPreset] = useState(false)
   const [bulkKeywords, setBulkKeywords] = useState('')
 
   // --- App state ---
@@ -109,6 +117,7 @@ export default function NewDashboardPage() {
         fetchJobs()
         fetchProfile(session.user.id)
         fetchTheme(session.user.id)
+        fetchPresets()
       }
     })
   }, [])
@@ -136,6 +145,14 @@ export default function NewDashboardPage() {
     if (data) setTheme(data)
   }, [])
 
+  const fetchPresets = useCallback(async () => {
+    const { data } = await getSupabase()
+      .from('presets')
+      .select('*')
+      .order('name')
+    if (data) setPresets(data)
+  }, [])
+
   const fetchJobs = useCallback(async () => {
     const { data, error } = await getSupabase()
       .from('jobs')
@@ -160,6 +177,62 @@ export default function NewDashboardPage() {
       must_reference_urls: mustReferenceUrls.trim() || null,
       never_reference_urls: neverReferenceUrls.trim() || null,
     }
+  }
+
+  function markModified() {
+    if (selectedPresetId) setPresetModified(true)
+  }
+
+  function applyPreset(preset) {
+    if (!preset) {
+      setSelectedPresetId(null)
+      setPresetModified(false)
+      setShowSavePreset(false)
+      return
+    }
+    setSelectedPresetId(preset.id)
+    setPresetModified(false)
+    setShowSavePreset(false)
+    if (preset.category != null) setCategory(preset.category ?? '')
+    if (preset.delivery_type) setDeliveryType(preset.delivery_type)
+    if (preset.article_purpose) setArticlePurpose(preset.article_purpose)
+    if (preset.word_count_setting) {
+      setWordCountType(preset.word_count_setting.startsWith('競合') ? 'relative' : 'absolute')
+      setWordCountValue(preset.word_count_setting)
+    } else {
+      setWordCountValue('')
+    }
+    setTargetAudience(preset.target_audience ?? '')
+    setCustomPrompt(preset.custom_prompt ?? '')
+    setMustReferenceUrls(preset.must_reference_urls ?? '')
+    setNeverReferenceUrls(preset.never_reference_urls ?? '')
+    if (preset.company_restriction) setCompanyRestriction(preset.company_restriction)
+  }
+
+  async function handleSaveNewPreset() {
+    if (!savePresetName.trim()) return
+    setSavingPreset(true)
+    const supabase = getSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+    const resolvedPurpose = articlePurpose === 'other' ? (articlePurposeOther.trim() || null) : (articlePurpose || null)
+    await supabase.from('presets').insert({
+      tenant_id: user.id,
+      name: savePresetName.trim(),
+      category: category.trim() || null,
+      delivery_type: deliveryType,
+      article_purpose: resolvedPurpose,
+      word_count_setting: wordCountValue || null,
+      target_audience: targetAudience.trim() || null,
+      custom_prompt: customPrompt.trim() || null,
+      must_reference_urls: mustReferenceUrls.trim() || null,
+      never_reference_urls: neverReferenceUrls.trim() || null,
+      company_restriction: companyRestriction === 'category' ? null : companyRestriction,
+    })
+    await fetchPresets()
+    setSavingPreset(false)
+    setShowSavePreset(false)
+    setPresetModified(false)
+    setSavePresetName('')
   }
 
   async function handleBulkGenerate(e) {
@@ -387,19 +460,90 @@ export default function NewDashboardPage() {
 
             {showAdvanced && (
               <div className="flex flex-col gap-3 pt-2 border-t border-gray-100">
+                {/* プリセット選択 */}
+                <div className="flex gap-2 items-center">
+                  <select
+                    value={selectedPresetId ?? ''}
+                    onChange={e => {
+                      const id = e.target.value
+                      if (!id) { applyPreset(null); return }
+                      const preset = presets.find(p => p.id === id)
+                      if (preset) applyPreset(preset)
+                    }}
+                    disabled={generating}
+                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
+                  >
+                    <option value="">プリセットを選択（任意）</option>
+                    {presets.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}{p.category ? ` [${p.category}]` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedPresetId && (
+                    <button
+                      type="button"
+                      onClick={() => applyPreset(null)}
+                      className="text-xs text-gray-400 hover:text-gray-600 whitespace-nowrap"
+                    >
+                      クリア
+                    </button>
+                  )}
+                </div>
+
+                {/* 変更通知 + 新規プリセット登録 */}
+                {presetModified && !showSavePreset && (
+                  <div className="flex items-center gap-3 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2.5">
+                    <span className="text-xs text-yellow-700 flex-1">プリセットから設定を変更しました</span>
+                    <button
+                      type="button"
+                      onClick={() => { setSavePresetName(''); setShowSavePreset(true) }}
+                      className="text-xs font-medium text-blue-600 hover:text-blue-700 whitespace-nowrap"
+                    >
+                      ＋ 新規プリセット登録
+                    </button>
+                  </div>
+                )}
+                {showSavePreset && (
+                  <div className="flex gap-2 items-center bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+                    <input
+                      type="text"
+                      value={savePresetName}
+                      onChange={e => setSavePresetName(e.target.value)}
+                      placeholder="新しいプリセット名"
+                      className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveNewPreset}
+                      disabled={savingPreset || !savePresetName.trim()}
+                      className="bg-blue-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
+                    >
+                      {savingPreset ? '保存中...' : '保存'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowSavePreset(false)}
+                      className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+
                 {/* カテゴリ + 企業制限 */}
                 <div className="flex gap-3">
                   <input
                     type="text"
                     value={category}
-                    onChange={e => setCategory(e.target.value)}
+                    onChange={e => { setCategory(e.target.value); markModified() }}
                     placeholder="カテゴリ（任意）例：転職、クレジットカード"
                     disabled={generating}
                     className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50"
                   />
                   <select
                     value={companyRestriction}
-                    onChange={e => setCompanyRestriction(e.target.value)}
+                    onChange={e => { setCompanyRestriction(e.target.value); markModified() }}
                     disabled={generating}
                     className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
                   >
@@ -417,7 +561,7 @@ export default function NewDashboardPage() {
                 <div className="flex gap-3">
                   <select
                     value={articlePurpose}
-                    onChange={e => setArticlePurpose(e.target.value)}
+                    onChange={e => { setArticlePurpose(e.target.value); markModified() }}
                     disabled={generating}
                     className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
                   >
@@ -433,7 +577,7 @@ export default function NewDashboardPage() {
                     <input
                       type="text"
                       value={articlePurposeOther}
-                      onChange={e => setArticlePurposeOther(e.target.value)}
+                      onChange={e => { setArticlePurposeOther(e.target.value); markModified() }}
                       placeholder="記事目的を入力..."
                       disabled={generating}
                       className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50"
@@ -445,7 +589,7 @@ export default function NewDashboardPage() {
                 <div className="flex gap-3">
                   <select
                     value={wordCountType}
-                    onChange={e => { setWordCountType(e.target.value); setWordCountValue('') }}
+                    onChange={e => { setWordCountType(e.target.value); setWordCountValue(''); markModified() }}
                     disabled={generating}
                     className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
                   >
@@ -454,7 +598,7 @@ export default function NewDashboardPage() {
                   </select>
                   <select
                     value={wordCountValue}
-                    onChange={e => setWordCountValue(e.target.value)}
+                    onChange={e => { setWordCountValue(e.target.value); markModified() }}
                     disabled={generating}
                     className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
                   >
@@ -485,7 +629,7 @@ export default function NewDashboardPage() {
                 <input
                   type="text"
                   value={targetAudience}
-                  onChange={e => setTargetAudience(e.target.value)}
+                  onChange={e => { setTargetAudience(e.target.value); markModified() }}
                   placeholder="ターゲット層（任意）例：30代会社員・副業初心者"
                   disabled={generating}
                   className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50"
@@ -494,7 +638,7 @@ export default function NewDashboardPage() {
                 {/* 自由記述プロンプト */}
                 <textarea
                   value={customPrompt}
-                  onChange={e => setCustomPrompt(e.target.value)}
+                  onChange={e => { setCustomPrompt(e.target.value); markModified() }}
                   placeholder="追加指示（任意）例：競合他社Aには言及しない、体験談を多めに入れる"
                   disabled={generating}
                   rows={2}
@@ -513,7 +657,7 @@ export default function NewDashboardPage() {
                   <div className="flex flex-col gap-2 pl-3 border-l-2 border-gray-100">
                     <textarea
                       value={mustReferenceUrls}
-                      onChange={e => setMustReferenceUrls(e.target.value)}
+                      onChange={e => { setMustReferenceUrls(e.target.value); markModified() }}
                       placeholder={"参照必須URL（1行1URL）\nhttps://example.com/page1"}
                       disabled={generating}
                       rows={3}
@@ -521,7 +665,7 @@ export default function NewDashboardPage() {
                     />
                     <textarea
                       value={neverReferenceUrls}
-                      onChange={e => setNeverReferenceUrls(e.target.value)}
+                      onChange={e => { setNeverReferenceUrls(e.target.value); markModified() }}
                       placeholder={"参照・言及禁止URL（1行1URL）\nhttps://competitor.com"}
                       disabled={generating}
                       rows={2}
