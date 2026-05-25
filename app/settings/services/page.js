@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
 import MainLayout from '@/app/_components/v2/MainLayout'
 
@@ -16,7 +17,7 @@ function sanitizeFilename(filename) {
   return `${Date.now()}_${safe}.${ext}`
 }
 
-const EMPTY_FORM = { name: '', category: '', url: '', raw_content: '', selling_points_text: '', file_path: '', file_name: '' }
+const EMPTY_FORM = { name: '', category: '', url: '', raw_content: '', selling_points_text: '', file_path: '', file_name: '', preset_id: '', must_include: '', must_exclude: '' }
 
 const ACCEPTED_TYPES = '.pdf,.xlsx,.xls,.csv,.docx,.txt'
 
@@ -25,6 +26,7 @@ export default function ServicesPage() {
   const [profile, setProfile] = useState(null)
   const [theme, setTheme] = useState(null)
   const [services, setServices] = useState([])
+  const [presets, setPresets] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null) // null | { mode: 'add'|'edit', form: {...} }
   const [extracting, setExtracting] = useState(false)
@@ -48,12 +50,18 @@ export default function ServicesPage() {
     setLoading(false)
   }
 
+  async function fetchPresets() {
+    const { data } = await getSupabase().from('presets').select('id, name').order('name')
+    if (data) setPresets(data)
+  }
+
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
       if (!session) { router.replace('/login'); return }
       fetchProfile(session.user.id)
       fetchTheme(session.user.id)
       fetchServices()
+      fetchPresets()
     })
   }, [fetchProfile, fetchTheme])
 
@@ -74,6 +82,9 @@ export default function ServicesPage() {
         selling_points_text: (svc.selling_points ?? []).join('\n'),
         file_path: svc.file_path ?? '',
         file_name: svc.file_path ? svc.file_path.split('/').pop().replace(/^\d+_/, '') : '',
+        preset_id: svc.preset_id ?? '',
+        must_include: svc.must_include ?? '',
+        must_exclude: svc.must_exclude ?? '',
       },
     })
     setError('')
@@ -140,6 +151,9 @@ export default function ServicesPage() {
       raw_content: form.raw_content.trim(),
       selling_points,
       file_path: form.file_path || null,
+      preset_id: form.preset_id || null,
+      must_include: form.must_include.trim() || null,
+      must_exclude: form.must_exclude.trim() || null,
     }
     if (mode === 'add') {
       await supabase.from('services').insert({ ...payload, tenant_id: user.id })
@@ -231,6 +245,23 @@ export default function ServicesPage() {
               {error && <p className="text-sm text-red-600 bg-red-50 rounded p-3">{error}</p>}
 
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">適用プリセット</label>
+                <div className="flex gap-2">
+                  <select
+                    value={modal.form.preset_id}
+                    onChange={e => updateForm('preset_id', e.target.value)}
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">指定なし</option>
+                    {presets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  <Link href="/settings/presets" className="flex items-center gap-1 border border-gray-300 text-gray-600 hover:bg-gray-50 text-xs px-3 py-2 rounded-lg transition-colors whitespace-nowrap">
+                    ＋ 新規作成
+                  </Link>
+                </div>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">サービス名 <span className="text-red-500">*</span></label>
                 <input
                   type="text"
@@ -315,8 +346,30 @@ export default function ServicesPage() {
                 <textarea
                   value={modal.form.selling_points_text}
                   onChange={e => updateForm('selling_points_text', e.target.value)}
-                  rows={6}
+                  rows={5}
                   placeholder="・低コストで導入可能&#10;・サポート体制が充実&#10;..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">絶対入れる表現</label>
+                <textarea
+                  value={modal.form.must_include}
+                  onChange={e => updateForm('must_include', e.target.value)}
+                  rows={2}
+                  placeholder="例：「初期費用0円」「30日間返金保証」など必ず記載する表現"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">絶対入れない表現</label>
+                <textarea
+                  value={modal.form.must_exclude}
+                  onChange={e => updateForm('must_exclude', e.target.value)}
+                  rows={2}
+                  placeholder="例：「高額」「難しい」「複雑」など記載を避ける表現"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
               </div>

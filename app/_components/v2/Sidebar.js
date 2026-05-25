@@ -21,70 +21,14 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
-  {
-    key: 'projects',
-    type: 'link',
-    label: 'プロジェクト',
-    href: null,
-    enabled: false,
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5 flex-shrink-0">
-        <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
-      </svg>
-    ),
-  },
-  {
-    key: 'bugs',
-    type: 'link',
-    label: 'バグ管理',
-    href: '/bugs',
-    enabled: true,
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5 flex-shrink-0">
-        <path d="M9 9a3 3 0 116 0v1H9V9z" />
-        <path d="M6.5 10H4a1 1 0 00-1 1v1a5 5 0 005 5h4a5 5 0 005-5v-1a1 1 0 00-1-1h-2.5" strokeLinecap="round" />
-        <path d="M12 17v3M8.5 8.5L6 6M15.5 8.5L18 6M6 20l2-2M18 20l-2-2" strokeLinecap="round" />
-      </svg>
-    ),
-  },
 
   // ── 生成プリセット セクション ──
   { key: 'section_preset', type: 'section', label: '生成プリセット' },
-  {
-    key: 'presets',
-    type: 'sublink',
-    label: 'プリセット一覧',
-    href: '/settings/presets',
-    enabled: true,
-  },
-  {
-    key: 'services',
-    type: 'sublink',
-    label: 'サービス管理',
-    href: '/settings/services',
-    enabled: true,
-  },
-  {
-    key: 'ctas',
-    type: 'sublink',
-    label: 'CTA管理',
-    href: '/settings/ctas',
-    enabled: true,
-  },
-  {
-    key: 'companies',
-    type: 'sublink',
-    label: '企業管理',
-    href: '/settings/companies',
-    enabled: true,
-  },
-  {
-    key: 'sources',
-    type: 'sublink',
-    label: '一次情報',
-    href: '/settings/sources',
-    enabled: true,
-  },
+  { key: 'presets',   type: 'sublink', label: 'プリセット一覧', href: '/settings/presets',   enabled: true },
+  { key: 'services',  type: 'sublink', label: 'サービス管理',   href: '/settings/services',  enabled: true },
+  { key: 'ctas',      type: 'sublink', label: 'CTA管理',        href: '/settings/ctas',      enabled: true },
+  { key: 'companies', type: 'sublink', label: '企業管理',       href: '/settings/companies', enabled: true },
+  { key: 'sources',   type: 'sublink', label: '一次情報',       href: '/settings/sources',   enabled: true },
 
   // ── アカウント ──
   {
@@ -97,6 +41,22 @@ const NAV_ITEMS = [
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5 flex-shrink-0">
         <circle cx="12" cy="8" r="4" />
         <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+
+  // ── 不具合情報 ──
+  {
+    key: 'bugs',
+    type: 'link',
+    label: '不具合情報',
+    href: '/bugs',
+    enabled: true,
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5 flex-shrink-0">
+        <path d="M9 9a3 3 0 116 0v1H9V9z" />
+        <path d="M6.5 10H4a1 1 0 00-1 1v1a5 5 0 005 5h4a5 5 0 005-5v-1a1 1 0 00-1-1h-2.5" strokeLinecap="round" />
+        <path d="M12 17v3M8.5 8.5L6 6M15.5 8.5L18 6M6 20l2-2M18 20l-2-2" strokeLinecap="round" />
       </svg>
     ),
   },

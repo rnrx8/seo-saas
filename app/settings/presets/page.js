@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
 import MainLayout from '@/app/_components/v2/MainLayout'
 
@@ -12,7 +13,8 @@ const EMPTY_FORM = {
   category: '',
   purpose_filter: '',
   site_url: '',
-  word_count_setting: '',
+  word_count_type: 'absolute',
+  word_count_value: '',
   article_purpose: '',
   target_audience: '',
   custom_prompt: '',
@@ -22,8 +24,26 @@ const EMPTY_FORM = {
 }
 
 const RESTRICTION_OPTIONS = [
-  { value: 'ai', label: 'AIに任せる', desc: 'リスト外の企業も状況に応じて紹介' },
+  { value: 'ai', label: 'AIおまかせ', desc: 'リスト外の企業も状況に応じて紹介' },
+  { value: 'registered_plus', label: '登録企業＋AIおすすめ', desc: '登録企業を優先しつつAIが適切と判断した企業も紹介' },
   { value: 'registered_only', label: '登録企業のみ', desc: '登録した企業以外は一切紹介しない' },
+]
+
+const ARTICLE_PURPOSE_OPTIONS = [
+  { value: '', label: '指定なし' },
+  { value: 'inbound', label: '誘導記事（SEO流入→回遊）' },
+  { value: 'cv', label: '自社商品・サービスのCV' },
+  { value: 'line', label: 'LINE・メルマガ登録' },
+  { value: 'whitepaper', label: 'ホワイトペーパー・資料DL' },
+  { value: 'branding', label: 'ブランディング・認知拡大' },
+  { value: 'other', label: 'その他（自由記述）' },
+]
+
+const SETTINGS_NAV = [
+  { label: 'サービス管理', href: '/settings/services' },
+  { label: 'CTA管理', href: '/settings/ctas' },
+  { label: '企業管理', href: '/settings/companies' },
+  { label: '一次情報', href: '/settings/sources' },
 ]
 
 function Tag({ label, onRemove }) {
@@ -94,6 +114,8 @@ export default function PresetsPage() {
   }
 
   function openEdit(preset) {
+    const wcs = preset.word_count_setting ?? ''
+    const wct = wcs.startsWith('競合') ? 'relative' : 'absolute'
     setModal({
       mode: 'edit',
       form: {
@@ -102,7 +124,8 @@ export default function PresetsPage() {
         category: preset.category ?? '',
         purpose_filter: preset.purpose_filter ?? '',
         site_url: preset.site_url ?? '',
-        word_count_setting: preset.word_count_setting ?? '',
+        word_count_type: wct,
+        word_count_value: wcs,
         article_purpose: preset.article_purpose ?? '',
         target_audience: preset.target_audience ?? '',
         custom_prompt: preset.custom_prompt ?? '',
@@ -132,8 +155,8 @@ export default function PresetsPage() {
       category: form.category.trim() || null,
       purpose_filter: form.purpose_filter.trim() || null,
       site_url: form.site_url.trim() || null,
-      word_count_setting: form.word_count_setting.trim() || null,
-      article_purpose: form.article_purpose.trim() || null,
+      word_count_setting: form.word_count_value || null,
+      article_purpose: form.article_purpose || null,
       target_audience: form.target_audience.trim() || null,
       custom_prompt: form.custom_prompt.trim() || null,
       must_reference_urls: form.must_reference_urls.trim() || null,
@@ -295,23 +318,54 @@ export default function PresetsPage() {
                 <div className="flex flex-col gap-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">目標文字数</label>
-                    <input
-                      type="text"
-                      value={modal.form.word_count_setting}
-                      onChange={e => updateForm('word_count_setting', e.target.value)}
-                      placeholder="例：3,000〜5,000字"
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <div className="flex gap-2">
+                      <select
+                        value={modal.form.word_count_type}
+                        onChange={e => { updateForm('word_count_type', e.target.value); updateForm('word_count_value', '') }}
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+                      >
+                        <option value="absolute">絶対値</option>
+                        <option value="relative">競合比（相対値）</option>
+                      </select>
+                      <select
+                        value={modal.form.word_count_value}
+                        onChange={e => updateForm('word_count_value', e.target.value)}
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+                      >
+                        <option value="">指定なし</option>
+                        {modal.form.word_count_type === 'absolute' ? (
+                          <>
+                            <option value="〜3,000字">〜3,000字</option>
+                            <option value="3,000〜5,000字">3,000〜5,000字</option>
+                            <option value="5,000〜7,000字">5,000〜7,000字</option>
+                            <option value="7,000〜10,000字">7,000〜10,000字</option>
+                            <option value="10,000〜15,000字">10,000〜15,000字</option>
+                            <option value="15,000字〜">15,000字〜</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="競合平均-20%">競合平均 -20%</option>
+                            <option value="競合平均-10%">競合平均 -10%</option>
+                            <option value="競合平均±0%">競合平均 ±0%</option>
+                            <option value="競合平均+20%">競合平均 +20%</option>
+                            <option value="競合平均+50%">競合平均 +50%</option>
+                            <option value="競合平均+100%">競合平均 +100%</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">記事目的</label>
-                    <input
-                      type="text"
+                    <select
                       value={modal.form.article_purpose}
                       onChange={e => updateForm('article_purpose', e.target.value)}
-                      placeholder="例：アフィリエイトCVを最大化する"
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+                    >
+                      {ARTICLE_PURPOSE_OPTIONS.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">ターゲット層</label>
@@ -382,6 +436,25 @@ export default function PresetsPage() {
                         <p className="text-xs text-gray-500 mt-0.5">{opt.desc}</p>
                       </div>
                     </label>
+                  ))}
+                </div>
+              </section>
+              {/* 紐付き設定（各設定ページへのリンク） */}
+              <section>
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">紐付き設定</h4>
+                <p className="text-xs text-gray-400 mb-3">各設定ページでこのプリセットを指定すると、生成時に自動参照されます。</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {SETTINGS_NAV.map(nav => (
+                    <Link
+                      key={nav.href}
+                      href={nav.href}
+                      className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2.5 hover:border-blue-400 hover:bg-blue-50 transition-colors group"
+                    >
+                      <span className="text-sm text-gray-700 group-hover:text-blue-700">{nav.label}</span>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-500">
+                        <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </Link>
                   ))}
                 </div>
               </section>

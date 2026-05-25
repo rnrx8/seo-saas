@@ -4,10 +4,11 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
 import MainLayout from '@/app/_components/v2/MainLayout'
 
-const EMPTY_FORM = { name: '', category: '', recommend_level: 3, affiliate_url: '', notes: '' }
+const EMPTY_FORM = { name: '', category: '', recommend_level: 3, affiliate_url: '', notes: '', preset_id: '', must_include: '', must_exclude: '' }
 
 const LEVEL_LABELS = {
   5: '5：最強おすすめ（比較表1位・強い推薦文・CTA誘導）',
@@ -34,6 +35,7 @@ export default function CompaniesPage() {
   const [profile, setProfile] = useState(null)
   const [theme, setTheme] = useState(null)
   const [companies, setCompanies] = useState([])
+  const [presets, setPresets] = useState([])
   const [categorySettings, setCategorySettings] = useState({}) // { [category]: 'registered_only'|'ai' }
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null) // null | { mode: 'add'|'edit', form: {...} }
@@ -70,12 +72,17 @@ export default function CompaniesPage() {
     }
   }
 
+  async function fetchPresets() {
+    const { data } = await getSupabase().from('presets').select('id, name').order('name')
+    if (data) setPresets(data)
+  }
+
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
       if (!session) { router.replace('/login'); return }
       fetchProfile(session.user.id)
       fetchTheme(session.user.id)
-      Promise.all([fetchCompanies(), fetchCategorySettings()])
+      Promise.all([fetchCompanies(), fetchCategorySettings(), fetchPresets()])
     })
   }, [fetchProfile, fetchTheme])
 
@@ -104,6 +111,9 @@ export default function CompaniesPage() {
         recommend_level: company.recommend_level ?? 3,
         affiliate_url: company.affiliate_url ?? '',
         notes: company.notes ?? '',
+        preset_id: company.preset_id ?? '',
+        must_include: company.must_include ?? '',
+        must_exclude: company.must_exclude ?? '',
       },
     })
     setError('')
@@ -128,6 +138,9 @@ export default function CompaniesPage() {
       recommend_level: Number(form.recommend_level),
       affiliate_url: form.affiliate_url.trim(),
       notes: form.notes.trim(),
+      preset_id: form.preset_id || null,
+      must_include: form.must_include.trim() || null,
+      must_exclude: form.must_exclude.trim() || null,
     }
     if (mode === 'add') {
       await supabase.from('company_settings').insert({ ...payload, tenant_id: user.id })
@@ -274,6 +287,23 @@ export default function CompaniesPage() {
               {error && <p className="text-sm text-red-600 bg-red-50 rounded p-3">{error}</p>}
 
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">適用プリセット</label>
+                <div className="flex gap-2">
+                  <select
+                    value={modal.form.preset_id}
+                    onChange={e => updateForm('preset_id', e.target.value)}
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">指定なし</option>
+                    {presets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  <Link href="/settings/presets" className="flex items-center gap-1 border border-gray-300 text-gray-600 hover:bg-gray-50 text-xs px-3 py-2 rounded-lg transition-colors whitespace-nowrap">
+                    ＋ 新規作成
+                  </Link>
+                </div>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">会社名 <span className="text-red-500">*</span></label>
                 <input
                   type="text"
@@ -323,8 +353,30 @@ export default function CompaniesPage() {
                 <textarea
                   value={modal.form.notes}
                   onChange={e => updateForm('notes', e.target.value)}
-                  rows={3}
-                  placeholder="40代以上に特化している点を強調する&#10;スカウト機能が強みなのでそこを推す&#10;手数料の高さには触れない"
+                  rows={2}
+                  placeholder="40代以上に特化している点を強調する&#10;スカウト機能が強みなのでそこを推す"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">絶対入れる表現</label>
+                <textarea
+                  value={modal.form.must_include}
+                  onChange={e => updateForm('must_include', e.target.value)}
+                  rows={2}
+                  placeholder="例：「業界最安値」「無料相談」など必ず記載する表現"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">絶対入れない表現</label>
+                <textarea
+                  value={modal.form.must_exclude}
+                  onChange={e => updateForm('must_exclude', e.target.value)}
+                  rows={2}
+                  placeholder="例：「手数料が高い」「評判が悪い」など記載を避ける表現"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
               </div>

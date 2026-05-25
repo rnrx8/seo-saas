@@ -4,16 +4,18 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
 import MainLayout from '@/app/_components/v2/MainLayout'
 
-const EMPTY_FORM = { name: '', category: '', body: '', button_text: '', url: '' }
+const EMPTY_FORM = { name: '', category: '', body: '', button_text: '', url: '', preset_id: '' }
 
 export default function CtasPage() {
   const router = useRouter()
   const [profile, setProfile] = useState(null)
   const [theme, setTheme] = useState(null)
   const [ctas, setCtas] = useState([])
+  const [presets, setPresets] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null) // null | { mode: 'add'|'edit', form: {...} }
   const [saving, setSaving] = useState(false)
@@ -35,12 +37,18 @@ export default function CtasPage() {
     setLoading(false)
   }
 
+  async function fetchPresets() {
+    const { data } = await getSupabase().from('presets').select('id, name').order('name')
+    if (data) setPresets(data)
+  }
+
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
       if (!session) { router.replace('/login'); return }
       fetchProfile(session.user.id)
       fetchTheme(session.user.id)
       fetchCtas()
+      fetchPresets()
     })
   }, [fetchProfile, fetchTheme])
 
@@ -59,6 +67,7 @@ export default function CtasPage() {
         body: cta.body ?? '',
         button_text: cta.button_text ?? '',
         url: cta.url ?? '',
+        preset_id: cta.preset_id ?? '',
       },
     })
     setError('')
@@ -83,6 +92,7 @@ export default function CtasPage() {
       body: form.body.trim(),
       button_text: form.button_text.trim(),
       url: form.url.trim(),
+      preset_id: form.preset_id || null,
     }
     if (mode === 'add') {
       await supabase.from('cta_blocks').insert({ ...payload, tenant_id: user.id })
@@ -171,6 +181,23 @@ export default function CtasPage() {
 
             <div className="p-6 flex flex-col gap-4">
               {error && <p className="text-sm text-red-600 bg-red-50 rounded p-3">{error}</p>}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">適用プリセット</label>
+                <div className="flex gap-2">
+                  <select
+                    value={modal.form.preset_id}
+                    onChange={e => updateForm('preset_id', e.target.value)}
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">指定なし</option>
+                    {presets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  <Link href="/settings/presets" className="flex items-center gap-1 border border-gray-300 text-gray-600 hover:bg-gray-50 text-xs px-3 py-2 rounded-lg transition-colors whitespace-nowrap">
+                    ＋ 新規作成
+                  </Link>
+                </div>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">名前（管理用）<span className="text-red-500">*</span></label>

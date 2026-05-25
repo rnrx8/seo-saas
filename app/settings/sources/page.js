@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
 import MainLayout from '@/app/_components/v2/MainLayout'
 
@@ -48,6 +49,7 @@ export default function SourcesPage() {
   const [profile, setProfile] = useState(null)
   const [theme, setTheme] = useState(null)
   const [sources, setSources] = useState([])
+  const [presets, setPresets] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null) // null | { form: {...} }
   const [uploading, setUploading] = useState(false)
@@ -74,17 +76,23 @@ export default function SourcesPage() {
     setLoading(false)
   }
 
+  async function fetchPresets() {
+    const { data } = await getSupabase().from('presets').select('id, name').order('name')
+    if (data) setPresets(data)
+  }
+
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
       if (!session) { router.replace('/login'); return }
       fetchProfile(session.user.id)
       fetchTheme(session.user.id)
       fetchSources()
+      fetchPresets()
     })
   }, [fetchProfile, fetchTheme])
 
   function openAdd() {
-    setModal({ form: { title: '', category: '', file_path: '', file_name: '', file_type: '', content_text: '' } })
+    setModal({ form: { title: '', category: '', file_path: '', file_name: '', file_type: '', content_text: '', preset_id: '' } })
     setError('')
   }
 
@@ -149,6 +157,7 @@ export default function SourcesPage() {
       file_path: form.file_path,
       file_type: form.file_type,
       content_text: form.content_text,
+      preset_id: form.preset_id || null,
     })
     setSaving(false)
     setModal(null)
@@ -225,6 +234,23 @@ export default function SourcesPage() {
 
             <div className="p-6 flex flex-col gap-4">
               {error && <p className="text-sm text-red-600 bg-red-50 rounded p-3">{error}</p>}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">適用プリセット</label>
+                <div className="flex gap-2">
+                  <select
+                    value={modal.form.preset_id}
+                    onChange={e => setModal(m => ({ ...m, form: { ...m.form, preset_id: e.target.value } }))}
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">指定なし</option>
+                    {presets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  <Link href="/settings/presets" className="flex items-center gap-1 border border-gray-300 text-gray-600 hover:bg-gray-50 text-xs px-3 py-2 rounded-lg transition-colors whitespace-nowrap">
+                    ＋ 新規作成
+                  </Link>
+                </div>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">タイトル（管理用）<span className="text-red-500">*</span></label>

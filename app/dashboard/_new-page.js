@@ -70,8 +70,7 @@ export default function NewDashboardPage() {
   // --- Form state ---
   const [keyword, setKeyword] = useState('')
   const [category, setCategory] = useState('')
-  const [companyRestriction, setCompanyRestriction] = useState('category')
-  const [categorySetting, setCategorySetting] = useState(null)
+  const [companyRestriction, setCompanyRestriction] = useState('preset')
   const [deliveryType, setDeliveryType] = useState('full')
   const [articlePurpose, setArticlePurpose] = useState('')
   const [articlePurposeOther, setArticlePurposeOther] = useState('')
@@ -81,7 +80,6 @@ export default function NewDashboardPage() {
   const [customPrompt, setCustomPrompt] = useState('')
   const [mustReferenceUrls, setMustReferenceUrls] = useState('')
   const [neverReferenceUrls, setNeverReferenceUrls] = useState('')
-  const [showUrlFields, setShowUrlFields] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [bulkMode, setBulkMode] = useState(false)
 
@@ -92,6 +90,12 @@ export default function NewDashboardPage() {
   const [showSavePreset, setShowSavePreset] = useState(false)
   const [savePresetName, setSavePresetName] = useState('')
   const [savingPreset, setSavingPreset] = useState(false)
+
+  // --- Linked items state ---
+  const [allServices, setAllServices] = useState([])
+  const [allCtas, setAllCtas] = useState([])
+  const [selectedServiceId, setSelectedServiceId] = useState(null)
+  const [selectedCtaId, setSelectedCtaId] = useState(null)
   const [bulkKeywords, setBulkKeywords] = useState('')
 
   // --- App state ---
@@ -118,22 +122,13 @@ export default function NewDashboardPage() {
         fetchProfile(session.user.id)
         fetchTheme(session.user.id)
         fetchPresets()
+        fetchAllServices()
+        fetchAllCtas()
       }
     })
   }, [])
 
   useEffect(() => () => { if (pollingId) clearInterval(pollingId) }, [pollingId])
-
-  useEffect(() => {
-    const trimmed = category.trim()
-    if (!trimmed) { setCategorySetting(null); return }
-    getSupabase()
-      .from('category_settings')
-      .select('company_restriction')
-      .eq('category', trimmed)
-      .maybeSingle()
-      .then(({ data }) => setCategorySetting(data?.company_restriction ?? null))
-  }, [category])
 
   const fetchProfile = useCallback(async (userId) => {
     const { data } = await getSupabase().from('user_profiles').select('*').eq('id', userId).single()
@@ -146,11 +141,18 @@ export default function NewDashboardPage() {
   }, [])
 
   const fetchPresets = useCallback(async () => {
-    const { data } = await getSupabase()
-      .from('presets')
-      .select('*')
-      .order('name')
+    const { data } = await getSupabase().from('presets').select('*').order('name')
     if (data) setPresets(data)
+  }, [])
+
+  const fetchAllServices = useCallback(async () => {
+    const { data } = await getSupabase().from('services').select('id, name, preset_id').order('name')
+    if (data) setAllServices(data)
+  }, [])
+
+  const fetchAllCtas = useCallback(async () => {
+    const { data } = await getSupabase().from('cta_blocks').select('id, name, preset_id').order('name')
+    if (data) setAllCtas(data)
   }, [])
 
   const fetchJobs = useCallback(async () => {
@@ -162,7 +164,11 @@ export default function NewDashboardPage() {
   }, [])
 
   function resolveJobParams(kw) {
-    const resolvedRestriction = companyRestriction === 'category' ? (categorySetting ?? 'ai') : companyRestriction
+    let resolvedRestriction = companyRestriction
+    if (companyRestriction === 'preset') {
+      const preset = presets.find(p => p.id === selectedPresetId)
+      resolvedRestriction = preset?.company_restriction ?? 'ai'
+    }
     const resolvedPurpose = articlePurpose === 'other' ? (articlePurposeOther.trim() || null) : (articlePurpose || null)
     return {
       main_keyword: kw,
@@ -176,6 +182,8 @@ export default function NewDashboardPage() {
       custom_prompt: customPrompt.trim() || null,
       must_reference_urls: mustReferenceUrls.trim() || null,
       never_reference_urls: neverReferenceUrls.trim() || null,
+      service_id: selectedServiceId ?? null,
+      cta_id: selectedCtaId ?? null,
     }
   }
 
@@ -206,7 +214,13 @@ export default function NewDashboardPage() {
     setCustomPrompt(preset.custom_prompt ?? '')
     setMustReferenceUrls(preset.must_reference_urls ?? '')
     setNeverReferenceUrls(preset.never_reference_urls ?? '')
-    if (preset.company_restriction) setCompanyRestriction(preset.company_restriction)
+    // 企業制限は「プリセット設定に従う」のまま（resolveJobParamsでpresetを参照）
+    setCompanyRestriction('preset')
+    // プリセットに紐付いたサービス・CTAを自動選択
+    const linkedSvc = allServices.find(s => s.preset_id === preset.id)
+    const linkedCta = allCtas.find(c => c.preset_id === preset.id)
+    setSelectedServiceId(linkedSvc?.id ?? null)
+    setSelectedCtaId(linkedCta?.id ?? null)
   }
 
   async function handleSaveNewPreset() {
@@ -531,31 +545,18 @@ export default function NewDashboardPage() {
                   </div>
                 )}
 
-                {/* カテゴリ + 企業制限 */}
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    value={category}
-                    onChange={e => { setCategory(e.target.value); markModified() }}
-                    placeholder="カテゴリ（任意）例：転職、クレジットカード"
-                    disabled={generating}
-                    className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50"
-                  />
-                  <select
-                    value={companyRestriction}
-                    onChange={e => { setCompanyRestriction(e.target.value); markModified() }}
-                    disabled={generating}
-                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
-                  >
-                    <option value="category">
-                      {companyRestriction === 'category' && categorySetting
-                        ? `カテゴリ設定に従う（現在：${categorySetting === 'registered_only' ? '登録企業のみ' : 'AIに任せる'}）`
-                        : 'カテゴリ設定に従う'}
-                    </option>
-                    <option value="registered_only">登録企業のみ（強制）</option>
-                    <option value="ai">AIに任せる（強制）</option>
-                  </select>
-                </div>
+                {/* 企業制限 */}
+                <select
+                  value={companyRestriction}
+                  onChange={e => { setCompanyRestriction(e.target.value); markModified() }}
+                  disabled={generating}
+                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
+                >
+                  <option value="preset">プリセット設定に従う</option>
+                  <option value="registered_only">登録企業のみ</option>
+                  <option value="registered_plus">登録企業＋AIおすすめ</option>
+                  <option value="ai">AIおまかせ</option>
+                </select>
 
                 {/* 記事目的 */}
                 <div className="flex gap-3">
@@ -646,31 +647,55 @@ export default function NewDashboardPage() {
                 />
 
                 {/* 参照URL設定 */}
-                <button
-                  type="button"
-                  onClick={() => setShowUrlFields(v => !v)}
-                  className="text-xs text-gray-400 hover:text-gray-600 text-left transition-colors"
-                >
-                  {showUrlFields ? '▲ 参照URL設定を閉じる' : '▼ 参照URL設定（任意）'}
-                </button>
-                {showUrlFields && (
-                  <div className="flex flex-col gap-2 pl-3 border-l-2 border-gray-100">
-                    <textarea
-                      value={mustReferenceUrls}
-                      onChange={e => { setMustReferenceUrls(e.target.value); markModified() }}
-                      placeholder={"参照必須URL（1行1URL）\nhttps://example.com/page1"}
-                      disabled={generating}
-                      rows={3}
-                      className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50 resize-none"
-                    />
-                    <textarea
-                      value={neverReferenceUrls}
-                      onChange={e => { setNeverReferenceUrls(e.target.value); markModified() }}
-                      placeholder={"参照・言及禁止URL（1行1URL）\nhttps://competitor.com"}
-                      disabled={generating}
-                      rows={2}
-                      className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50 resize-none"
-                    />
+                <div className="flex flex-col gap-2">
+                  <textarea
+                    value={mustReferenceUrls}
+                    onChange={e => { setMustReferenceUrls(e.target.value); markModified() }}
+                    placeholder={"参照必須URL（1行1URL）\nhttps://example.com/page1"}
+                    disabled={generating}
+                    rows={2}
+                    className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50 resize-none"
+                  />
+                  <textarea
+                    value={neverReferenceUrls}
+                    onChange={e => { setNeverReferenceUrls(e.target.value); markModified() }}
+                    placeholder={"参照・言及禁止URL（1行1URL）\nhttps://competitor.com"}
+                    disabled={generating}
+                    rows={2}
+                    className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50 resize-none"
+                  />
+                </div>
+
+                {/* サービス・CTA参照 */}
+                {(allServices.length > 0 || allCtas.length > 0) && (
+                  <div className="flex flex-col gap-2 pt-1 border-t border-gray-100">
+                    <p className="text-xs font-medium text-gray-500">サービス・CTA（任意）</p>
+                    {allServices.length > 0 && (
+                      <select
+                        value={selectedServiceId ?? ''}
+                        onChange={e => { setSelectedServiceId(e.target.value || null); markModified() }}
+                        disabled={generating}
+                        className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
+                      >
+                        <option value="">サービスを選択（任意）</option>
+                        {allServices.map(s => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                    )}
+                    {allCtas.length > 0 && (
+                      <select
+                        value={selectedCtaId ?? ''}
+                        onChange={e => { setSelectedCtaId(e.target.value || null); markModified() }}
+                        disabled={generating}
+                        className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
+                      >
+                        <option value="">CTAを選択（任意）</option>
+                        {allCtas.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 )}
               </div>
