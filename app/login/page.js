@@ -39,18 +39,18 @@ export default function LoginPage() {
           }}
         />
         {/* 下部の波形装飾 */}
-        <div className="absolute bottom-0 left-0 right-0 h-48 opacity-40">
-          <svg viewBox="0 0 800 120" preserveAspectRatio="none" className="w-full h-full">
-            <path d="M0,60 C200,20 400,100 600,40 C700,10 750,60 800,50 L800,120 L0,120 Z" fill="url(#wave1)" />
-            <path d="M0,80 C150,40 350,110 550,60 C650,30 730,70 800,60 L800,120 L0,120 Z" fill="url(#wave2)" opacity="0.6" />
+        <div className="absolute bottom-0 left-0 right-0" style={{ height: '220px' }}>
+          <svg viewBox="0 0 1200 220" preserveAspectRatio="none" className="w-full h-full">
+            <path d="M0,110 C200,60 400,160 600,90 C800,20 1000,130 1200,80 L1200,220 L0,220 Z" fill="url(#lwave1)" />
+            <path d="M0,150 C250,90 500,180 750,120 C950,70 1100,150 1200,120 L1200,220 L0,220 Z" fill="url(#lwave2)" opacity="0.7" />
             <defs>
-              <linearGradient id="wave1" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#7c3aed" stopOpacity="0.4" />
-                <stop offset="100%" stopColor="#f472b6" stopOpacity="0.4" />
+              <linearGradient id="lwave1" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#8b9fd4" stopOpacity="0.45" />
+                <stop offset="100%" stopColor="#d4a5b5" stopOpacity="0.45" />
               </linearGradient>
-              <linearGradient id="wave2" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#818cf8" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="#fb923c" stopOpacity="0.3" />
+              <linearGradient id="lwave2" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#a5b8e4" stopOpacity="0.35" />
+                <stop offset="100%" stopColor="#e8b0c0" stopOpacity="0.35" />
               </linearGradient>
             </defs>
           </svg>

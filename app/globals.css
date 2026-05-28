@@ -3,8 +3,8 @@
 :root {
   --background: #f5f5fb;
   --foreground: #374151;
-  --grad-from: #7c3aed;
-  --grad-to: #f472b6;
+  --grad-from: #8b9fd4;
+  --grad-to: #d4a5b5;
   --grad: linear-gradient(135deg, var(--grad-from), var(--grad-to));
 }
 

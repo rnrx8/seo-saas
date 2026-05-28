@@ -444,124 +444,21 @@ export default function NewDashboardPage() {
   return (
     <MainLayout profile={profile} theme={theme}>
       <div className="px-8 py-8">
-        {/* ヘッダー */}
-        <div className="relative flex items-center justify-between mb-8 overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-sm px-8 py-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800 tracking-wide">SEO記事生成ダッシュボード</h1>
-            <p className="text-gray-400 text-sm mt-1">キーワードを入力して、SEO最適化された記事を自動生成します</p>
-          </div>
-          {/* マスコット装飾 */}
-          <div className="relative flex-shrink-0 w-64 h-20 select-none pointer-events-none">
-            {/* 波線SVG */}
-            <svg viewBox="0 0 260 80" className="absolute inset-0 w-full h-full" fill="none">
-              {/* 青い波線 */}
-              <path d="M0,55 C40,30 80,60 120,40 C160,20 200,50 260,35" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-              {/* オレンジの波線 */}
-              <path d="M0,65 C50,45 90,70 140,52 C180,38 220,60 260,48" stroke="#fb923c" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-              {/* ドット */}
-              <circle cx="120" cy="40" r="4" fill="#3b82f6" />
-              <circle cx="248" cy="36" r="5" fill="#fb923c" />
-              {/* スパーク */}
-              <path d="M20,20 L21.2,23 L24,24.2 L21.2,25.4 L20,28.4 L18.8,25.4 L16,24.2 L18.8,23 Z" fill="#a78bfa" opacity="0.7" />
-              <path d="M200,15 L200.8,17 L203,17.8 L200.8,18.6 L200,20.6 L199.2,18.6 L197,17.8 L199.2,17 Z" fill="#f472b6" opacity="0.7" />
-              <circle cx="50" cy="18" r="2" fill="#a78bfa" opacity="0.5" />
-              <circle cx="170" cy="25" r="1.5" fill="#60a5fa" opacity="0.5" />
-            </svg>
-            {/* マスコット */}
-            <img
-              src="/mascot.png"
-              alt=""
-              className="absolute bottom-0 right-6 h-20 object-contain drop-shadow-sm"
-            />
-          </div>
-        </div>
-
         {/* Generate form card */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: 'var(--grad)' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5} className="w-3.5 h-3.5">
-                <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-              </svg>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: 'var(--grad)' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5} className="w-3.5 h-3.5">
+                  <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+                </svg>
+              </div>
+              <h2 className="font-semibold text-gray-800">新規記事生成</h2>
             </div>
-            <h2 className="font-semibold text-gray-800">新規記事生成</h2>
+            <img src="/mascot.png" alt="" className="h-14 object-contain select-none pointer-events-none" />
           </div>
 
           <form onSubmit={bulkMode ? handleBulkGenerate : handleGenerate} className="flex flex-col gap-3">
-
-            {/* プリセット選択（常時表示） */}
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-2 items-center">
-                <select
-                  value={selectedPresetId ?? ''}
-                  onChange={e => {
-                    const id = e.target.value
-                    if (!id) { applyPreset(null); return }
-                    const preset = presets.find(p => p.id === id)
-                    if (preset) applyPreset(preset)
-                  }}
-                  disabled={generating}
-                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 text-gray-700 bg-gray-50"
-                >
-                  <option value="">プリセットを選択（任意）</option>
-                  {presets.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}{p.category ? ` [${p.category}]` : ''}
-                    </option>
-                  ))}
-                </select>
-                {selectedPresetId && (
-                  <button
-                    type="button"
-                    onClick={() => applyPreset(null)}
-                    disabled={generating}
-                    className="text-xs text-gray-400 hover:text-gray-600 whitespace-nowrap disabled:opacity-50"
-                  >
-                    クリア
-                  </button>
-                )}
-              </div>
-
-              {/* 変更通知 + 新規プリセット登録 */}
-              {presetModified && !showSavePreset && (
-                <div className="flex items-center gap-3 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2.5">
-                  <span className="text-xs text-yellow-700 flex-1">プリセットから設定を変更しました</span>
-                  <button
-                    type="button"
-                    onClick={() => { setSavePresetName(''); setShowSavePreset(true) }}
-                    className="text-xs font-medium text-blue-600 hover:text-blue-700 whitespace-nowrap"
-                  >
-                    ＋ 新規プリセット登録
-                  </button>
-                </div>
-              )}
-              {showSavePreset && (
-                <div className="flex gap-2 items-center bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-                  <input
-                    type="text"
-                    value={savePresetName}
-                    onChange={e => setSavePresetName(e.target.value)}
-                    placeholder="新しいプリセット名"
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSaveNewPreset}
-                    disabled={savingPreset || !savePresetName.trim()}
-                    className="bg-blue-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
-                  >
-                    {savingPreset ? '保存中...' : '保存'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowSavePreset(false)}
-                    className="text-gray-400 hover:text-gray-600 text-lg leading-none"
-                  >
-                    ×
-                  </button>
-                </div>
-              )}
-            </div>
 
             {/* 納品物選択 */}
             <div className="flex gap-2">
@@ -577,12 +474,13 @@ export default function NewDashboardPage() {
                   disabled={generating}
                   className={`px-3 py-2 rounded-xl text-sm font-medium border transition-colors disabled:opacity-50 flex flex-col items-center ${
                     deliveryType === opt.value
-                      ? 'bg-blue-600 text-white border-blue-600'
+                      ? 'text-white border-transparent'
                       : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                   }`}
+                  style={deliveryType === opt.value ? { background: 'var(--grad)' } : {}}
                 >
                   {opt.label}
-                  <span className={`text-[10px] font-normal mt-0.5 ${deliveryType === opt.value ? 'text-blue-200' : 'text-gray-400'}`}>
+                  <span className={`text-[10px] font-normal mt-0.5 ${deliveryType === opt.value ? 'text-white/70' : 'text-gray-400'}`}>
                     {opt.time}
                   </span>
                 </button>
@@ -648,8 +546,92 @@ export default function NewDashboardPage() {
               )}
             </div>
 
-            {/* 情報精度99.9%モード */}
-            <div className="flex items-center gap-2">
+            {/* プリセット選択 */}
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2 items-center">
+                <select
+                  value={selectedPresetId ?? ''}
+                  onChange={e => {
+                    const id = e.target.value
+                    if (!id) { applyPreset(null); return }
+                    const preset = presets.find(p => p.id === id)
+                    if (preset) applyPreset(preset)
+                  }}
+                  disabled={generating}
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 disabled:bg-gray-50 text-gray-700 bg-gray-50"
+                >
+                  <option value="">プリセットを選択（任意）</option>
+                  {presets.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}{p.category ? ` [${p.category}]` : ''}
+                    </option>
+                  ))}
+                </select>
+                {selectedPresetId && (
+                  <button
+                    type="button"
+                    onClick={() => applyPreset(null)}
+                    disabled={generating}
+                    className="text-xs text-gray-400 hover:text-gray-600 whitespace-nowrap disabled:opacity-50"
+                  >
+                    クリア
+                  </button>
+                )}
+              </div>
+              {presetModified && !showSavePreset && (
+                <div className="flex items-center gap-3 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2.5">
+                  <span className="text-xs text-yellow-700 flex-1">プリセットから設定を変更しました</span>
+                  <button
+                    type="button"
+                    onClick={() => { setSavePresetName(''); setShowSavePreset(true) }}
+                    className="text-xs font-medium text-violet-600 hover:text-violet-700 whitespace-nowrap"
+                  >
+                    ＋ 新規プリセット登録
+                  </button>
+                </div>
+              )}
+              {showSavePreset && (
+                <div className="flex gap-2 items-center bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
+                  <input
+                    type="text"
+                    value={savePresetName}
+                    onChange={e => setSavePresetName(e.target.value)}
+                    placeholder="新しいプリセット名"
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveNewPreset}
+                    disabled={savingPreset || !savePresetName.trim()}
+                    className="btn-gradient text-xs px-3 py-1.5 rounded-lg disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {savingPreset ? '保存中...' : '保存'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSavePreset(false)}
+                    className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* 詳細設定トグル */}
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(v => !v)}
+              className="text-xs text-gray-400 hover:text-gray-600 text-left transition-colors flex items-center gap-1"
+            >
+              <span>{showAdvanced ? '▲' : '▼'}</span>
+              <span>詳細設定（カテゴリ・記事目的・文字数・ターゲット層など）</span>
+            </button>
+
+            {showAdvanced && (
+              <div className="flex flex-col gap-3 pt-2 border-t border-gray-100">
+                {/* 情報精度99.9%モード */}
+                <div className="flex items-center gap-2">
               <input
                 type="checkbox"
                 id="high-accuracy-mode"
@@ -669,20 +651,8 @@ export default function NewDashboardPage() {
                   Tier1ソース（公式・政府・学術）は1件で確認済み、Tier2（一般サイト）は複数一致で確認済みと判定します。
                 </span>
               </span>
-            </div>
+                </div>
 
-            {/* 詳細設定トグル */}
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(v => !v)}
-              className="text-xs text-gray-400 hover:text-gray-600 text-left transition-colors flex items-center gap-1"
-            >
-              <span>{showAdvanced ? '▲' : '▼'}</span>
-              <span>詳細設定（カテゴリ・記事目的・文字数・ターゲット層など）</span>
-            </button>
-
-            {showAdvanced && (
-              <div className="flex flex-col gap-3 pt-2 border-t border-gray-100">
                 {/* 比較対象企業設定 */}
                 <div className="flex flex-col gap-2">
                   <label className="text-xs font-medium text-gray-500">比較対象企業設定</label>
