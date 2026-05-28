@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
+import MainLayoutDark from '@/app/_components/v2/MainLayoutDark'
 
 function calcSimilarity(kw1, kw2) {
   const t1 = kw1.toLowerCase().split(/\s+/).filter(Boolean)
@@ -47,6 +48,7 @@ export default function DashboardPage() {
   const [bulkKeywords, setBulkKeywords] = useState('')
   const [jobs, setJobs] = useState([])
   const [profile, setProfile] = useState(null)
+  const [theme, setTheme] = useState(null)
   const [generating, setGenerating] = useState(false)
   const [currentStep, setCurrentStep] = useState(null)
   const [pollingId, setPollingId] = useState(null)
@@ -61,6 +63,7 @@ export default function DashboardPage() {
         setAuthChecked(true)
         fetchJobs()
         fetchProfile(session.user.id)
+        getSupabase().from('tenant_themes').select('*').eq('tenant_id', session.user.id).maybeSingle().then(({ data }) => { if (data) setTheme(data) })
       }
     })
   }, [])
@@ -323,37 +326,7 @@ export default function DashboardPage() {
     : '...'
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-800">SEO記事生成</h1>
-        <div className="flex items-center gap-6">
-          {profile && (
-            <span className="text-sm text-gray-600">
-              <span className="font-medium text-gray-800">
-                {PLAN_LABELS[profile.plan] ?? profile.plan}
-              </span>
-              {' '}｜{' '}
-              <span className={!isPro && profile.credits_remaining <= 1 ? 'text-red-600 font-medium' : ''}>
-                {creditsLabel}
-              </span>
-            </span>
-          )}
-          <Link href="/bugs" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-            バグ管理
-          </Link>
-          <Link href="/settings" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-            設定
-          </Link>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-          >
-            ログアウト
-          </button>
-        </div>
-      </header>
-
+    <MainLayoutDark profile={profile} theme={theme}>
       <main className="max-w-4xl mx-auto px-8 py-8 flex flex-col gap-8">
         {/* Generate form */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -675,6 +648,6 @@ export default function DashboardPage() {
           )}
         </section>
       </main>
-    </div>
+    </MainLayoutDark>
   )
 }

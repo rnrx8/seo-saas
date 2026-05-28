@@ -6,6 +6,7 @@ import { use, useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import MainLayoutDark from '@/app/_components/v2/MainLayoutDark'
 import { marked } from 'marked'
 import { getSupabase } from '@/lib/supabase'
 
@@ -77,6 +78,8 @@ export default function ArticlePage({ params }) {
   const [showPanel, setShowPanel] = useState(false)
   const [wpConfigured, setWpConfigured] = useState(false)
   const [job, setJob] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [theme, setTheme] = useState(null)
 
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
@@ -87,6 +90,8 @@ export default function ArticlePage({ params }) {
       fetchArtifacts()
       fetchWpConfig()
       fetchJob()
+      getSupabase().from('user_profiles').select('*').eq('id', session.user.id).single().then(({ data }) => { if (data) setProfile(data) })
+      getSupabase().from('tenant_themes').select('*').eq('tenant_id', session.user.id).maybeSingle().then(({ data }) => { if (data) setTheme(data) })
     })
   }, [id])
 
@@ -139,20 +144,7 @@ export default function ArticlePage({ params }) {
   )
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-800">記事表示</h1>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="text-sm text-gray-500 hover:text-gray-700 border border-gray-300 px-4 py-2 rounded-lg transition-colors"
-          >
-            ダッシュボードに戻る
-          </button>
-        </div>
-      </header>
-
+    <MainLayoutDark profile={profile} theme={theme}>
       <main className="max-w-4xl mx-auto px-8 py-8">
         {error ? (
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-6 text-sm">
@@ -253,7 +245,7 @@ export default function ArticlePage({ params }) {
         intentText={artifacts['search_intent'] ?? ''}
         onApply={handleApplyEdit}
       />
-    </div>
+    </MainLayoutDark>
   )
 }
 
