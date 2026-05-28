@@ -423,7 +423,7 @@ export default function DashboardPage() {
               <button
                 type="submit"
                 disabled={generating || (bulkMode ? !bulkKeywords.trim() : (!keyword.trim() || (!isPro && profile?.credits_remaining <= 0)))}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 whitespace-nowrap self-start"
+                className="btn-gradient px-6 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 whitespace-nowrap self-start"
               >
                 {generating ? (bulkMode ? '登録中...' : '生成中...') : (bulkMode ? '一括登録' : '記事生成')}
               </button>

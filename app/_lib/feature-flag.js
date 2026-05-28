@@ -1,5 +1,9 @@
+const OLD_DESIGN_EMAILS = [
+  'ryoka.nishi@lany.co.jp',
+]
+
 export function isNewDesignEnabled(email) {
-  return true
+  return !OLD_DESIGN_EMAILS.includes(email?.toLowerCase())
 }
 
 const ADMIN_EMAILS = [

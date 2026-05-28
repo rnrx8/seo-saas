@@ -1,11 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { getSupabase } from '@/lib/supabase'
 
-// type: 'link' | 'section' | 'sublink'
 const NAV_ITEMS = [
   {
     key: 'dashboard',
@@ -14,7 +14,7 @@ const NAV_ITEMS = [
     href: '/dashboard',
     enabled: true,
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5 flex-shrink-0">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 flex-shrink-0">
         <rect x="3" y="3" width="7" height="7" rx="1" />
         <rect x="14" y="3" width="7" height="7" rx="1" />
         <rect x="3" y="14" width="7" height="7" rx="1" />
@@ -22,16 +22,12 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
-
-  // ── 生成プリセット セクション ──
   { key: 'section_preset', type: 'section', label: '生成プリセット' },
   { key: 'presets',   type: 'sublink', label: 'プリセット一覧', href: '/settings/presets',   enabled: true },
   { key: 'services',  type: 'sublink', label: 'サービス管理',   href: '/settings/services',  enabled: true },
   { key: 'ctas',      type: 'sublink', label: 'CTA管理',        href: '/settings/ctas',      enabled: true },
   { key: 'companies', type: 'sublink', label: '企業管理',       href: '/settings/companies', enabled: true },
   { key: 'sources',   type: 'sublink', label: '一次情報',       href: '/settings/sources',   enabled: true },
-
-  // ── アカウント ──
   {
     key: 'account',
     type: 'link',
@@ -39,14 +35,12 @@ const NAV_ITEMS = [
     href: '/settings',
     enabled: true,
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5 flex-shrink-0">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 flex-shrink-0">
         <circle cx="12" cy="8" r="4" />
         <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" strokeLinecap="round" />
       </svg>
     ),
   },
-
-  // ── 不具合情報 ──
   {
     key: 'bugs',
     type: 'link',
@@ -54,7 +48,7 @@ const NAV_ITEMS = [
     href: '/bugs',
     enabled: true,
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5 flex-shrink-0">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 flex-shrink-0">
         <path d="M9 9a3 3 0 116 0v1H9V9z" />
         <path d="M6.5 10H4a1 1 0 00-1 1v1a5 5 0 005 5h4a5 5 0 005-5v-1a1 1 0 00-1-1h-2.5" strokeLinecap="round" />
         <path d="M12 17v3M8.5 8.5L6 6M15.5 8.5L18 6M6 20l2-2M18 20l-2-2" strokeLinecap="round" />
@@ -68,11 +62,10 @@ export default function Sidebar({ profile, theme }) {
   const pathname = usePathname()
   const [presetOpen, setPresetOpen] = useState(true)
 
-  const sidebarBg = theme?.sidebar_bg || '#0c1832'
-  const primaryColor = theme?.primary_color || '#2563eb'
-  const logoText = theme?.logo_text || 'DIG'
-  const logoSubtitle = theme?.logo_subtitle || 'SEO Platform'
-  const companyName = theme?.company_name || 'DIG'
+  const planLabel = { free: 'フリープラン', standard: 'スタンダード', pro: 'プロプラン' }[profile?.plan] ?? 'フリープラン'
+  const creditsRemaining = profile?.credits_remaining ?? 0
+  const creditsTotal = profile?.credits_total ?? 5
+  const creditPct = creditsTotal > 0 ? Math.min(100, Math.round((creditsRemaining / creditsTotal) * 100)) : 0
 
   async function handleLogout() {
     await getSupabase().auth.signOut()
@@ -87,39 +80,21 @@ export default function Sidebar({ profile, theme }) {
     return pathname === item.href
   }
 
-  const planLabel = { free: 'フリープラン', standard: 'スタンダード', pro: 'プロプラン' }[profile?.plan] ?? 'フリープラン'
-  const creditsRemaining = profile?.credits_remaining ?? 0
-  const creditsTotal = profile?.credits_total ?? 5
-  const creditPct = creditsTotal > 0 ? Math.min(100, Math.round((creditsRemaining / creditsTotal) * 100)) : 0
-
   return (
-    <aside
-      className="flex flex-col h-screen w-56 flex-shrink-0"
-      style={{ backgroundColor: sidebarBg }}
-    >
+    <aside className="flex flex-col h-screen w-56 flex-shrink-0 bg-white border-r border-gray-100">
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-white/10">
+      <div className="px-5 py-5 border-b border-gray-100">
         <div className="flex items-center gap-2.5">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-            style={{ backgroundColor: primaryColor }}
-          >
-            {logoText.slice(0, 2)}
-          </div>
-          <div className="min-w-0">
-            <div className="text-white font-bold text-sm leading-none truncate">{logoText}</div>
-            <div className="text-white/50 text-[10px] leading-none mt-0.5 truncate">{logoSubtitle}</div>
-          </div>
+          <Image src="/logo-circle.png" alt="logo" width={36} height={36} className="flex-shrink-0" />
+          <Image src="/logo-text.png" alt="DiG" width={48} height={24} className="object-contain" />
         </div>
       </div>
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5 overflow-y-auto">
         {NAV_ITEMS.map((item) => {
-          // セクションヘッダー
           if (item.type === 'section') {
             if (item.key === 'section_preset') {
-              const anyActive = NAV_ITEMS.filter(i => i.type === 'sublink').some(i => isActive(i))
               return (
                 <button
                   key={item.key}
@@ -127,14 +102,12 @@ export default function Sidebar({ profile, theme }) {
                   onClick={() => setPresetOpen(v => !v)}
                   className="flex items-center justify-between px-3 pt-5 pb-1 w-full group"
                 >
-                  <span className={`text-[10px] font-semibold uppercase tracking-wider transition-colors ${
-                    anyActive ? 'text-white/60' : 'text-white/30 group-hover:text-white/50'
-                  }`}>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 group-hover:text-gray-500 transition-colors">
                     {item.label}
                   </span>
                   <svg
                     viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}
-                    className={`w-3 h-3 text-white/30 group-hover:text-white/50 transition-transform ${presetOpen ? '' : '-rotate-90'}`}
+                    className={`w-3 h-3 text-gray-300 group-hover:text-gray-400 transition-transform ${presetOpen ? '' : '-rotate-90'}`}
                   >
                     <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
@@ -143,17 +116,16 @@ export default function Sidebar({ profile, theme }) {
             }
             return (
               <div key={item.key} className="px-3 pt-5 pb-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-white/30">{item.label}</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{item.label}</span>
               </div>
             )
           }
 
-          // サブリンク（インデント・アイコンなし）
           if (item.type === 'sublink') {
             if (!presetOpen) return null
             if (!item.enabled) {
               return (
-                <div key={item.key} className="flex items-center pl-6 pr-3 py-2 rounded-lg text-xs text-white/20 cursor-not-allowed select-none">
+                <div key={item.key} className="flex items-center pl-6 pr-3 py-1.5 rounded-lg text-xs text-gray-300 cursor-not-allowed select-none">
                   {item.label}
                 </div>
               )
@@ -163,27 +135,21 @@ export default function Sidebar({ profile, theme }) {
               <Link
                 key={item.key}
                 href={item.href}
-                className={`flex items-center pl-6 pr-3 py-2 rounded-lg text-xs transition-colors ${
-                  active ? 'text-white font-medium' : 'text-white/50 hover:text-white/80 hover:bg-white/8'
+                className={`flex items-center pl-6 pr-3 py-1.5 rounded-lg text-xs transition-colors ${
+                  active
+                    ? 'bg-violet-50 text-violet-700 font-medium'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                 }`}
-                style={active ? { backgroundColor: `${primaryColor}33` } : {}}
               >
-                <span
-                  className="w-1 h-1 rounded-full mr-2.5 flex-shrink-0"
-                  style={{ backgroundColor: active ? primaryColor : 'rgba(255,255,255,0.3)' }}
-                />
+                <span className={`w-1 h-1 rounded-full mr-2.5 flex-shrink-0 ${active ? 'bg-violet-500' : 'bg-gray-300'}`} />
                 {item.label}
               </Link>
             )
           }
 
-          // 通常リンク
           if (!item.enabled) {
             return (
-              <div
-                key={item.key}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/25 cursor-not-allowed select-none"
-              >
+              <div key={item.key} className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-gray-300 cursor-not-allowed select-none">
                 {item.icon}
                 {item.label}
               </div>
@@ -195,12 +161,13 @@ export default function Sidebar({ profile, theme }) {
             <Link
               key={item.key}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                active ? 'text-white font-medium' : 'text-white/60 hover:text-white/90 hover:bg-white/8'
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                active
+                  ? 'bg-violet-50 text-violet-700 font-medium'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
-              style={active ? { backgroundColor: primaryColor } : {}}
             >
-              <span className={active ? 'text-white' : 'text-white/50'}>
+              <span className={active ? 'text-violet-500' : 'text-gray-400'}>
                 {item.icon}
               </span>
               {item.label}
@@ -210,34 +177,34 @@ export default function Sidebar({ profile, theme }) {
       </nav>
 
       {/* Plan card */}
-      <div className="mx-3 mb-3 rounded-xl p-4 border border-white/10 bg-white/5">
+      <div className="mx-3 mb-3 rounded-xl p-4 border border-gray-100 bg-gray-50">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-white/70 text-xs">{planLabel}</span>
-          <span className="text-white text-xs font-medium">{creditsRemaining}/{creditsTotal}</span>
+          <span className="text-gray-500 text-xs">{planLabel}</span>
+          <span className="text-gray-700 text-xs font-medium">{creditsRemaining}/{creditsTotal}</span>
         </div>
-        <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+        <div className="w-full h-1.5 rounded-full bg-gray-200 overflow-hidden">
           <div
             className="h-full rounded-full transition-all"
-            style={{ width: `${creditPct}%`, backgroundColor: primaryColor }}
+            style={{ width: `${creditPct}%`, background: 'var(--grad)' }}
           />
         </div>
-        <p className="text-white/40 text-[10px] mt-2">残りクレジット</p>
+        <p className="text-gray-400 text-[10px] mt-2">残りクレジット</p>
       </div>
 
       {/* User / Logout */}
-      <div className="px-4 py-4 border-t border-white/10 flex items-center justify-between">
+      <div className="px-4 py-4 border-t border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
           <div
             className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0"
-            style={{ backgroundColor: primaryColor }}
+            style={{ background: 'var(--grad)' }}
           >
-            {(companyName[0] ?? 'U').toUpperCase()}
+            {((theme?.company_name ?? profile?.display_name ?? 'U')[0]).toUpperCase()}
           </div>
-          <span className="text-white/60 text-xs truncate">{companyName}</span>
+          <span className="text-gray-500 text-xs truncate">{theme?.company_name ?? profile?.display_name ?? ''}</span>
         </div>
         <button
           onClick={handleLogout}
-          className="text-white/40 hover:text-white/70 transition-colors flex-shrink-0 ml-2"
+          className="text-gray-300 hover:text-gray-500 transition-colors flex-shrink-0 ml-2"
           title="ログアウト"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">

@@ -745,7 +745,7 @@ function LlmoView({ markdown }) {
           <button
             onClick={handleGenerate}
             disabled={generating || !markdown}
-            className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+            className="shrink-0 btn-gradient text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
           >
             {generating ? '生成中...' : 'FAQスキーマ生成'}
           </button>
@@ -922,7 +922,7 @@ function SectionReorderPanel({ markdown, onClose, onApply }) {
             <button onClick={onClose} className="border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-600 hover:border-gray-300 transition-colors">
               キャンセル
             </button>
-            <button onClick={handleApply} className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors">
+            <button onClick={handleApply} className="btn-gradient rounded-lg px-4 py-2 text-sm font-medium transition-colors">
               適用
             </button>
           </div>

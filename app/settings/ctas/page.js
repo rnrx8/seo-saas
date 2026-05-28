@@ -115,7 +115,7 @@ export default function CtasPage() {
           <h2 className="text-xl font-semibold text-gray-800">CTA管理</h2>
           <button
             onClick={openAdd}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="btn-gradient text-sm px-4 py-2 rounded-lg transition-colors"
           >
             ＋ CTAを追加
           </button>
@@ -263,7 +263,7 @@ export default function CtasPage() {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50"
+                className="btn-gradient text-sm px-5 py-2 rounded-lg transition-colors disabled:opacity-50"
               >
                 {saving ? '保存中...' : '保存'}
               </button>

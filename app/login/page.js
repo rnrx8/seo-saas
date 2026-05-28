@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { getSupabase } from '@/lib/supabase'
 
@@ -8,6 +9,7 @@ export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -15,9 +17,7 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-
     const { error } = await getSupabase().auth.signInWithPassword({ email, password })
-
     if (error) {
       setError(error.message)
       setLoading(false)
@@ -27,41 +27,125 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white rounded-xl shadow-md p-8 w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">SEO記事生成</h1>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <div className="min-h-screen flex" style={{ backgroundColor: '#f0f0f8' }}>
+      {/* 左：ブランディング */}
+      <div className="hidden lg:flex flex-col items-center justify-center flex-1 relative overflow-hidden px-12">
+        {/* ドットグリッド背景 */}
+        <div
+          className="absolute inset-0 opacity-30"
+          style={{
+            backgroundImage: 'radial-gradient(circle, #a78bfa 1px, transparent 1px)',
+            backgroundSize: '28px 28px',
+          }}
+        />
+        {/* 下部の波形装飾 */}
+        <div className="absolute bottom-0 left-0 right-0 h-48 opacity-40">
+          <svg viewBox="0 0 800 120" preserveAspectRatio="none" className="w-full h-full">
+            <path d="M0,60 C200,20 400,100 600,40 C700,10 750,60 800,50 L800,120 L0,120 Z" fill="url(#wave1)" />
+            <path d="M0,80 C150,40 350,110 550,60 C650,30 730,70 800,60 L800,120 L0,120 Z" fill="url(#wave2)" opacity="0.6" />
+            <defs>
+              <linearGradient id="wave1" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#7c3aed" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="#f472b6" stopOpacity="0.4" />
+              </linearGradient>
+              <linearGradient id="wave2" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#818cf8" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="#fb923c" stopOpacity="0.3" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+
+        <div className="relative z-10 flex flex-col items-center gap-6 text-center">
+          <Image src="/logo-circle.png" alt="DIG" width={140} height={140} className="drop-shadow-md" />
+          <Image src="/logo-text.png" alt="DiG" width={120} height={60} className="object-contain" />
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">メールアドレス</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="you@example.com"
-            />
+            <p className="text-gray-700 font-semibold text-lg tracking-wide">Understand intent. Unlock growth.</p>
+            <p className="text-gray-400 text-sm mt-1">AI-powered deep intent insights for<br />smarter decisions and better outcomes.</p>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">パスワード</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="••••••••"
-            />
+        </div>
+      </div>
+
+      {/* 右：ログインフォーム */}
+      <div className="flex flex-col items-center justify-center w-full lg:w-[480px] lg:flex-shrink-0 px-8">
+        <div className="glass-panel w-full max-w-sm rounded-2xl shadow-xl p-8">
+          {/* スパークアイコン */}
+          <div className="text-center mb-6">
+            <span className="text-2xl" style={{ background: 'var(--grad)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>✦</span>
+            <h1 className="text-2xl font-bold text-gray-800 mt-2">Welcome back</h1>
+            <p className="text-gray-400 text-sm mt-1">Sign in to continue to DIG</p>
           </div>
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition-colors disabled:opacity-50"
-          >
-            {loading ? 'ログイン中...' : 'ログイン'}
-          </button>
-        </form>
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1.5">メールアドレス</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+                    <path d="M3 8l9 6 9-6M3 8v10a1 1 0 001 1h16a1 1 0 001-1V8M3 8a1 1 0 011-1h16a1 1 0 011 1" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                  placeholder="you@company.com"
+                  className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-2.5 text-sm text-gray-700 bg-white/80 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-transparent placeholder-gray-300"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1.5">パスワード</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+                    <rect x="5" y="11" width="14" height="10" rx="2" />
+                    <path d="M8 11V7a4 4 0 018 0v4" strokeLinecap="round" />
+                  </svg>
+                </span>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••••••"
+                  className="w-full border border-gray-200 rounded-xl pl-9 pr-10 py-2.5 text-sm text-gray-700 bg-white/80 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-transparent placeholder-gray-300"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+                    {showPassword
+                      ? <path d="M3 3l18 18M10.5 10.7A3 3 0 0013.3 13.5M6.5 6.6A9.8 9.8 0 003 12c1.7 4 5.5 7 9 7a9.7 9.7 0 005.4-1.6M9 5.1A9.7 9.7 0 0112 5c3.5 0 7.3 3 9 7a10 10 0 01-1.9 3" strokeLinecap="round" strokeLinejoin="round" />
+                      : <><path d="M1 12C2.7 7 7 4 12 4s9.3 3 11 8c-1.7 5-6 8-11 8S2.7 17 1 12z" /><circle cx="12" cy="12" r="3" /></>
+                    }
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {error && <p className="text-red-500 text-sm bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-gradient w-full py-3 rounded-xl text-sm font-medium mt-1 flex items-center justify-center gap-2"
+            >
+              {loading ? 'ログイン中...' : (
+                <>
+                  サインイン
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-4 h-4">
+                    <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </>
+              )}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   )

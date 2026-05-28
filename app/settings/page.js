@@ -289,7 +289,7 @@ export default function SettingsPage() {
                     {!isCurrent && (
                       <button
                         onClick={() => handleUpgrade(plan.id)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                        className="btn-gradient text-sm px-4 py-2 rounded-lg transition-colors"
                       >
                         {plan.id === 'free' ? 'ダウングレード' : 'アップグレード'}
                       </button>
@@ -401,7 +401,7 @@ export default function SettingsPage() {
               <button
                 onClick={handleWpSave}
                 disabled={wpSaving}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                className="btn-gradient text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
               >
                 {wpSaving ? '保存中...' : '保存'}
               </button>
