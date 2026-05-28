@@ -82,6 +82,7 @@ export default function NewArticlePage({ params }) {
   const [showPanel, setShowPanel] = useState(false)
   const [profile, setProfile] = useState(null)
   const [theme, setTheme] = useState(null)
+  const [wpConfigured, setWpConfigured] = useState(false)
 
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
@@ -93,8 +94,18 @@ export default function NewArticlePage({ params }) {
       fetchJob()
       fetchProfile(session.user.id)
       fetchTheme(session.user.id)
+      fetchWpConfig(session.user.id)
     })
   }, [id])
+
+  async function fetchWpConfig(userId) {
+    const { data } = await getSupabase()
+      .from('user_profiles')
+      .select('wp_url, wp_username, wp_app_password')
+      .eq('id', userId)
+      .single()
+    setWpConfigured(!!(data?.wp_url && data?.wp_username && data?.wp_app_password))
+  }
 
   async function fetchArtifacts() {
     const { data, error } = await getSupabase()
@@ -226,6 +237,8 @@ export default function NewArticlePage({ params }) {
                       markdown={articleText}
                       onOpenPanel={() => setShowPanel(true)}
                       onApplyReorder={(newMd) => setArtifacts(prev => ({ ...prev, article: newMd }))}
+                      wpConfigured={wpConfigured}
+                      jobId={id}
                     />
                   </div>
                 )}
@@ -341,10 +354,13 @@ function InfoRow({ label, value }) {
   )
 }
 
-function ArticleView({ markdown, onOpenPanel, onApplyReorder }) {
+function ArticleView({ markdown, onOpenPanel, onApplyReorder, wpConfigured, jobId }) {
   const [view, setView] = useState('preview')
   const [copied, setCopied] = useState(false)
   const [showReorder, setShowReorder] = useState(false)
+  const [wpPosting, setWpPosting] = useState(false)
+  const [wpResult, setWpResult] = useState(null)
+  const [wpError, setWpError] = useState('')
 
   const html = marked(markdown)
 
@@ -353,6 +369,26 @@ function ArticleView({ markdown, onOpenPanel, onApplyReorder }) {
     await navigator.clipboard.writeText(text)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function handleWpPost() {
+    setWpPosting(true)
+    setWpError('')
+    setWpResult(null)
+    try {
+      const { data: { session } } = await getSupabase().auth.getSession()
+      const res = await fetch('/api/wp-post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ job_id: jobId }),
+      })
+      const data = await res.json()
+      if (data.error) setWpError(data.error)
+      else setWpResult(data)
+    } catch {
+      setWpError('通信エラーが発生しました')
+    }
+    setWpPosting(false)
   }
 
   return (
@@ -395,8 +431,33 @@ function ArticleView({ markdown, onOpenPanel, onApplyReorder }) {
               </>
             )}
           </button>
+          {wpConfigured && (
+            <button
+              onClick={handleWpPost}
+              disabled={wpPosting}
+              className="border border-blue-200 bg-blue-50 px-3 py-1.5 rounded-lg text-sm text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-50"
+            >
+              {wpPosting ? '投稿中...' : 'WP投稿'}
+            </button>
+          )}
+          <button
+            onClick={() => setShowReorder(true)}
+            disabled={!markdown}
+            className="border border-gray-200 bg-white px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:border-gray-300 transition-colors disabled:opacity-40"
+          >
+            並び替え
+          </button>
         </div>
       </div>
+      {wpError && (
+        <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-3">{wpError}</p>
+      )}
+      {wpResult && (
+        <p className="text-xs text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2 mb-3">
+          下書き投稿しました。
+          <a href={wpResult.edit_url} target="_blank" rel="noopener noreferrer" className="underline ml-1">WordPress編集画面を開く</a>
+        </p>
+      )}
 
       {view === 'preview' && (
         <article className="max-w-none">
@@ -785,93 +846,314 @@ function SectionReorderPanel({ markdown, onClose, onApply }) {
 
 // ── EditAssistPanel ──────────────────────────────────────────────────────────
 
-function EditAssistPanel({ open, onClose, jobId, articleText, intentText, onApply }) {
-  const [instruction, setInstruction] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState('')
-  const [error, setError] = useState('')
+function parseHeadings(markdown) {
+  return markdown.split('\n').reduce((acc, line, idx) => {
+    const m = line.match(/^(#{2,4})\s+(.+)/)
+    if (m) acc.push({ level: `h${m[1].length}`, text: m[2].trim(), lineIdx: idx })
+    return acc
+  }, [])
+}
 
-  async function handleSubmit(e) {
-    e.preventDefault()
-    if (!instruction.trim() || loading) return
-    setLoading(true)
-    setError('')
-    setResult('')
+const EDIT_TYPES = [
+  { key: 'text_edit', label: '文章修正' },
+  { key: 'service',   label: 'サービス紹介を挿入' },
+  { key: 'cta',       label: 'CTAを挿入' },
+]
+
+function EditAssistPanel({ open, onClose, jobId, articleText, intentText, onApply }) {
+  const [step, setStep] = useState(1)
+  const [editType, setEditType] = useState('')
+  const [headings, setHeadings] = useState([])
+  const [selectedHeading, setSelectedHeading] = useState(null)
+  const [insertPosition, setInsertPosition] = useState('end_of_section')
+  const [instruction, setInstruction] = useState('')
+  const [insertStyle, setInsertStyle] = useState('natural')
+  const [selectedServiceId, setSelectedServiceId] = useState('')
+  const [selectedCtaId, setSelectedCtaId] = useState('')
+  const [services, setServices] = useState([])
+  const [ctas, setCtas] = useState([])
+  const [generating, setGenerating] = useState(false)
+  const [result, setResult] = useState(null)
+  const [applying, setApplying] = useState(false)
+  const [panelError, setPanelError] = useState('')
+
+  useEffect(() => {
+    if (!open) return
+    setStep(1); setEditType(''); setSelectedHeading(null)
+    setInsertPosition('end_of_section'); setInstruction('')
+    setInsertStyle('natural'); setSelectedServiceId(''); setSelectedCtaId('')
+    setResult(null); setPanelError('')
+    setHeadings(parseHeadings(articleText))
+    getSupabase().from('services').select('id,name,category,url,selling_points').then(({ data }) => setServices(data ?? []))
+    getSupabase().from('cta_blocks').select('id,name,category,body,button_text,url').then(({ data }) => setCtas(data ?? []))
+  }, [open])
+
+  async function handleGenerate() {
+    if (!selectedHeading) return
+    const service = services.find(s => s.id === selectedServiceId) ?? null
+    const cta = ctas.find(c => c.id === selectedCtaId) ?? null
+    setPanelError(''); setGenerating(true)
     try {
-      const { data: { session } } = await getSupabase().auth.getSession()
       const res = await fetch('/api/edit-assist', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ job_id: jobId, instruction: instruction.trim(), article_text: articleText, intent_text: intentText }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          article_text: articleText,
+          intent_text: intentText,
+          edit_type: editType,
+          target_heading: selectedHeading.text,
+          heading_level: selectedHeading.level,
+          insert_position: insertPosition,
+          instruction: editType === 'text_edit' ? instruction : '',
+          service: service ? { name: service.name, selling_points: service.selling_points ?? [], url: service.url } : null,
+          cta: cta ? { name: cta.name, body: cta.body, button_text: cta.button_text, url: cta.url } : null,
+        }),
       })
       const data = await res.json()
-      if (data.error) setError(data.error)
-      else setResult(data.result ?? '')
+      if (data.error) { setPanelError(data.error); setGenerating(false); return }
+      setResult(data)
+      setStep(4)
     } catch {
-      setError('通信エラーが発生しました')
+      setPanelError('通信エラーが発生しました')
     }
-    setLoading(false)
+    setGenerating(false)
+  }
+
+  async function handleApply() {
+    if (!result) return
+    setApplying(true)
+    await getSupabase().from('edit_history').insert({
+      job_id: jobId,
+      edit_type: editType,
+      target_section: selectedHeading?.text ?? '',
+      before_text: result.original_section,
+      after_text: result.modified_section,
+    })
+    await getSupabase()
+      .from('artifacts')
+      .update({ content_text: result.full_article })
+      .eq('job_id', jobId)
+      .eq('step', 'article')
+    setApplying(false)
+    onApply(result.full_article)
   }
 
   if (!open) return null
 
+  const levelLabel = selectedHeading
+    ? { h2: 'H2', h3: 'H3', h4: 'H4' }[selectedHeading.level] ?? ''
+    : ''
+
   return (
-    <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-black/20" onClick={onClose} />
-      <div className="w-[480px] bg-white shadow-2xl flex flex-col h-full border-l border-gray-100">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+    <>
+      <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
+      <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-50 flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
           <h2 className="font-semibold text-gray-800">編集アシスト</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-              <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
-            </svg>
-          </button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
         </div>
-        <form onSubmit={handleSubmit} className="px-6 py-4 border-b border-gray-100 flex gap-2">
-          <input
-            type="text"
-            value={instruction}
-            onChange={e => setInstruction(e.target.value)}
-            placeholder="編集指示を入力（例：リード文を書き直して）"
-            disabled={loading}
-            className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-          />
-          <button
-            type="submit"
-            disabled={loading || !instruction.trim()}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50 whitespace-nowrap"
-          >
-            {loading ? '処理中...' : '送信'}
-          </button>
-        </form>
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl p-3 mb-4">{error}</p>}
-          {result && (
+
+        <div className="flex gap-1 px-5 py-3 border-b border-gray-100 shrink-0">
+          {[1,2,3].map(n => (
+            <div key={n} className={`flex-1 h-1 rounded-full ${step > n ? 'bg-blue-600' : step === n ? 'bg-blue-400' : 'bg-gray-200'}`} />
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5">
+          {panelError && (
+            <p className="text-sm text-red-600 bg-red-50 rounded p-3 mb-4">{panelError}</p>
+          )}
+
+          {/* STEP 1: 編集タイプ */}
+          {step === 1 && (
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-gray-500">修正案</p>
-                <button
-                  onClick={() => onApply(result)}
-                  className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors font-medium"
-                >
-                  記事に適用
-                </button>
-              </div>
-              <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                {result}
+              <p className="text-sm font-medium text-gray-700 mb-3">STEP 1：編集タイプを選択</p>
+              <div className="flex flex-col gap-2">
+                {EDIT_TYPES.map(t => (
+                  <button
+                    key={t.key}
+                    onClick={() => { setEditType(t.key); setStep(2) }}
+                    className="text-left border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-700 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                  >
+                    {t.label}
+                  </button>
+                ))}
               </div>
             </div>
           )}
-          {!result && !error && !loading && (
-            <p className="text-sm text-gray-400 text-center py-8">編集指示を入力して送信してください</p>
+
+          {/* STEP 2: 見出し選択 */}
+          {step === 2 && (
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-3">STEP 2：対象セクションを選択</p>
+              <div className="border border-gray-200 rounded-lg overflow-hidden mb-4 max-h-64 overflow-y-auto">
+                {headings.length === 0 ? (
+                  <p className="text-sm text-gray-400 p-4">見出しが見つかりません</p>
+                ) : headings.map((h, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setSelectedHeading(h)}
+                    className={`w-full text-left px-3 py-2 text-sm border-b border-gray-100 last:border-0 transition-colors ${
+                      selectedHeading?.text === h.text && selectedHeading?.level === h.level
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'hover:bg-gray-50 text-gray-700'
+                    } ${h.level === 'h3' ? 'pl-7' : h.level === 'h4' ? 'pl-11' : ''}`}
+                  >
+                    <span className="text-xs text-gray-400 mr-1.5">{h.level.toUpperCase()}</span>
+                    <span className={h.level === 'h2' ? 'font-semibold' : ''}>{h.text}</span>
+                  </button>
+                ))}
+              </div>
+
+              {selectedHeading && (
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-gray-700 mb-2">挿入位置</p>
+                  {[
+                    { val: 'end_of_section', label: `この${levelLabel}セクションの末尾` },
+                    { val: 'after_heading',  label: `この${levelLabel}の直後（コンテンツの前）` },
+                  ].map(opt => (
+                    <label key={opt.val} className="flex items-center gap-2 text-sm text-gray-700 mb-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="insertPosition"
+                        value={opt.val}
+                        checked={insertPosition === opt.val}
+                        onChange={() => setInsertPosition(opt.val)}
+                        className="accent-blue-600"
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button onClick={() => setStep(1)} className="flex-1 border border-gray-300 text-gray-600 rounded-lg py-2 text-sm hover:bg-gray-50 transition-colors">戻る</button>
+                <button
+                  onClick={() => setStep(3)}
+                  disabled={!selectedHeading}
+                  className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm hover:bg-blue-700 transition-colors disabled:opacity-40"
+                >
+                  次へ
+                </button>
+              </div>
+            </div>
           )}
-          {loading && (
-            <div className="flex justify-center py-8">
-              <span className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+
+          {/* STEP 3: 内容指定 */}
+          {step === 3 && (
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-3">STEP 3：内容を指定</p>
+              <p className="text-xs text-gray-500 mb-4 bg-gray-50 rounded px-3 py-2">
+                対象：<span className="font-medium text-gray-700">{selectedHeading?.text}</span>
+              </p>
+
+              {editType === 'text_edit' && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">修正指示</label>
+                  <textarea
+                    value={instruction}
+                    onChange={e => setInstruction(e.target.value)}
+                    rows={5}
+                    placeholder="例：もう少し簡潔にして&#10;例：です・ます調に統一して"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  />
+                </div>
+              )}
+
+              {editType === 'service' && (
+                <div className="flex flex-col gap-3 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">サービスを選択</label>
+                    <select
+                      value={selectedServiceId}
+                      onChange={e => setSelectedServiceId(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">-- 選択 --</option>
+                      {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">挿入スタイル</label>
+                    {[
+                      { val: 'natural', label: '自然な本文として挿入' },
+                      { val: 'box',     label: 'ボックス形式で挿入' },
+                    ].map(opt => (
+                      <label key={opt.val} className="flex items-center gap-2 text-sm text-gray-700 mb-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="insertStyle"
+                          value={opt.val}
+                          checked={insertStyle === opt.val}
+                          onChange={() => setInsertStyle(opt.val)}
+                          className="accent-blue-600"
+                        />
+                        {opt.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {editType === 'cta' && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">CTAを選択</label>
+                  <select
+                    value={selectedCtaId}
+                    onChange={e => setSelectedCtaId(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">-- 選択 --</option>
+                    {ctas.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button onClick={() => setStep(2)} className="flex-1 border border-gray-300 text-gray-600 rounded-lg py-2 text-sm hover:bg-gray-50 transition-colors">戻る</button>
+                <button
+                  onClick={handleGenerate}
+                  disabled={generating || (editType === 'text_edit' && !instruction.trim()) || (editType === 'service' && !selectedServiceId) || (editType === 'cta' && !selectedCtaId)}
+                  className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm hover:bg-blue-700 transition-colors disabled:opacity-40"
+                >
+                  {generating ? '生成中...' : '生成'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4: 結果・適用 */}
+          {step === 4 && result && (
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-3">STEP 4：変更内容を確認</p>
+              <div className="mb-3">
+                <p className="text-xs font-medium text-gray-500 mb-1">変更前</p>
+                <pre className="bg-red-50 border border-red-100 rounded p-3 text-xs text-gray-700 whitespace-pre-wrap overflow-auto max-h-40">{result.original_section}</pre>
+              </div>
+              <div className="mb-5">
+                <p className="text-xs font-medium text-gray-500 mb-1">変更後</p>
+                <pre className="bg-green-50 border border-green-100 rounded p-3 text-xs text-gray-700 whitespace-pre-wrap overflow-auto max-h-40">{result.modified_section}</pre>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setResult(null); setStep(3) }}
+                  className="flex-1 border border-gray-300 text-gray-600 rounded-lg py-2 text-sm hover:bg-gray-50 transition-colors"
+                >
+                  やり直し
+                </button>
+                <button
+                  onClick={handleApply}
+                  disabled={applying}
+                  className="flex-1 bg-green-600 text-white rounded-lg py-2 text-sm hover:bg-green-700 transition-colors disabled:opacity-40"
+                >
+                  {applying ? '適用中...' : '適用'}
+                </button>
+              </div>
             </div>
           )}
         </div>
       </div>
-    </div>
+    </>
   )
 }
