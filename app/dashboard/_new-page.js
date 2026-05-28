@@ -209,6 +209,7 @@ export default function NewDashboardPage() {
       cta_id: selectedCtaIds[0] ?? null,
       citation_style: citationStyle || 'none',
       high_accuracy_mode: highAccuracyMode,
+      preset_id: selectedPresetId ?? null,
     }
   }
 

@@ -51,7 +51,7 @@ export default function SourcesPage() {
   const [sources, setSources] = useState([])
   const [presets, setPresets] = useState([])
   const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState(null) // null | { form: {...} }
+  const [modal, setModal] = useState(null) // null | { form: {...}, editId?: string }
   const [uploading, setUploading] = useState(false)
   const [extracting, setExtracting] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -93,6 +93,22 @@ export default function SourcesPage() {
 
   function openAdd() {
     setModal({ form: { title: '', category: '', file_path: '', file_name: '', file_type: '', content_text: '', preset_id: '' } })
+    setError('')
+  }
+
+  function openEdit(src) {
+    setModal({
+      editId: src.id,
+      form: {
+        title: src.title ?? '',
+        category: src.category ?? '',
+        file_path: src.file_path ?? '',
+        file_name: src.file_path?.split('/').pop() ?? '',
+        file_type: src.file_type ?? '',
+        content_text: src.content_text ?? '',
+        preset_id: src.preset_id ?? '',
+      },
+    })
     setError('')
   }
 
@@ -144,21 +160,30 @@ export default function SourcesPage() {
 
   async function handleSave() {
     if (!modal) return
-    const { form } = modal
+    const { form, editId } = modal
     if (!form.title.trim()) { setError('タイトルは必須です'); return }
-    if (!form.file_path) { setError('ファイルをアップロードしてください'); return }
+    if (!editId && !form.file_path) { setError('ファイルをアップロードしてください'); return }
     setSaving(true)
     const supabase = getSupabase()
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('primary_sources').insert({
-      tenant_id: user.id,
-      title: form.title.trim(),
-      category: form.category.trim(),
-      file_path: form.file_path,
-      file_type: form.file_type,
-      content_text: form.content_text,
-      preset_id: form.preset_id || null,
-    })
+    if (editId) {
+      await supabase.from('primary_sources').update({
+        title: form.title.trim(),
+        category: form.category.trim(),
+        content_text: form.content_text,
+        preset_id: form.preset_id || null,
+      }).eq('id', editId).eq('tenant_id', user.id)
+    } else {
+      await supabase.from('primary_sources').insert({
+        tenant_id: user.id,
+        title: form.title.trim(),
+        category: form.category.trim(),
+        file_path: form.file_path,
+        file_type: form.file_type,
+        content_text: form.content_text,
+        preset_id: form.preset_id || null,
+      })
+    }
     setSaving(false)
     setModal(null)
     fetchSources()
@@ -206,16 +231,31 @@ export default function SourcesPage() {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-400">
-                      {new Date(src.created_at).toLocaleDateString('ja-JP')}
-                    </p>
+                    <div className="flex items-center gap-3 mt-1">
+                      <p className="text-xs text-gray-400">
+                        {new Date(src.created_at).toLocaleDateString('ja-JP')}
+                      </p>
+                      {src.preset_id && (
+                        <p className="text-xs text-blue-600">
+                          プリセット: {presets.find(p => p.id === src.preset_id)?.name ?? '—'}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <button
-                    onClick={() => handleDelete(src.id)}
-                    className="border border-red-200 text-red-600 hover:bg-red-50 text-sm px-3 py-1.5 rounded-lg transition-colors shrink-0"
-                  >
-                    削除
-                  </button>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => openEdit(src)}
+                      className="border border-gray-300 text-gray-600 hover:bg-gray-50 text-sm px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      編集
+                    </button>
+                    <button
+                      onClick={() => handleDelete(src.id)}
+                      className="border border-red-200 text-red-600 hover:bg-red-50 text-sm px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      削除
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -228,7 +268,7 @@ export default function SourcesPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-800">資料を追加</h3>
+              <h3 className="font-semibold text-gray-800">{modal.editId ? '資料を編集' : '資料を追加'}</h3>
               <button onClick={() => setModal(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
             </div>
 
@@ -275,8 +315,15 @@ export default function SourcesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">ファイル <span className="text-red-500">*</span></label>
-                {modal.form.file_name ? (
+                <label className="block text-sm font-medium text-gray-700 mb-2">ファイル{!modal.editId && <span className="text-red-500"> *</span>}</label>
+                {modal.editId ? (
+                  <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 bg-gray-50">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${fileTypeBadgeColor(modal.form.file_type)}`}>
+                      {fileTypeLabel(modal.form.file_type)}
+                    </span>
+                    <span className="text-sm text-gray-500 flex-1 truncate">{modal.form.file_name}</span>
+                  </div>
+                ) : modal.form.file_name ? (
                   <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 bg-gray-50">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${fileTypeBadgeColor(modal.form.file_type)}`}>
                       {fileTypeLabel(modal.form.file_type)}
