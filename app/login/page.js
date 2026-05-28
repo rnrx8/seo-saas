@@ -27,7 +27,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundImage: "url('/background.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}>
+    <div className="min-h-screen flex">
       {/* 左：ブランディング */}
       <div className="hidden lg:flex flex-col items-center justify-center flex-1 relative overflow-hidden px-12">
         {/* ドットグリッド背景 */}
