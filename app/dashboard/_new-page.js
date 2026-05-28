@@ -445,7 +445,7 @@ export default function NewDashboardPage() {
     <MainLayout profile={profile} theme={theme}>
       <div className="px-8 py-8">
         {/* Generate form card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+        <div className="glass-panel rounded-2xl shadow-sm p-6 mb-8">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: 'var(--grad)' }}>
@@ -927,7 +927,7 @@ export default function NewDashboardPage() {
         </div>
 
         {/* Jobs table */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="glass-panel rounded-2xl shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4">
             <h2 className="font-semibold text-gray-800">生成済み記事一覧</h2>
             <div className="flex items-center gap-3">

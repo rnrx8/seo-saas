@@ -3,9 +3,9 @@
 :root {
   --background: #f5f5fb;
   --foreground: #374151;
-  --grad-from: #8099e0;
-  --grad-to: #f0b4a4;
-  --grad: linear-gradient(135deg, var(--grad-from), var(--grad-to));
+  --grad-from: #9CAEFC;
+  --grad-to: #FEC5BB;
+  --grad: linear-gradient(135deg, #9CAEFC, #BAADFB, #E3B5E9, #FEC5BB);
 }
 
 @theme inline {
@@ -40,8 +40,8 @@ body {
 
 /* すりガラスパネル */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.70);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.6);
 }
