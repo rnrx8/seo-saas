@@ -29,36 +29,10 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* 左：ブランディング */}
-      <div className="hidden lg:flex flex-col items-center justify-center flex-1 relative overflow-hidden px-12">
-        {/* ドットグリッド背景 */}
-        <div
-          className="absolute inset-0 opacity-30"
-          style={{
-            backgroundImage: 'radial-gradient(circle, #a78bfa 1px, transparent 1px)',
-            backgroundSize: '28px 28px',
-          }}
-        />
-        {/* 下部の波形装飾 */}
-        <div className="absolute bottom-0 left-0 right-0" style={{ height: '220px' }}>
-          <svg viewBox="0 0 1200 220" preserveAspectRatio="none" className="w-full h-full">
-            <path d="M0,110 C200,60 400,160 600,90 C800,20 1000,130 1200,80 L1200,220 L0,220 Z" fill="url(#lwave1)" />
-            <path d="M0,150 C250,90 500,180 750,120 C950,70 1100,150 1200,120 L1200,220 L0,220 Z" fill="url(#lwave2)" opacity="0.7" />
-            <defs>
-              <linearGradient id="lwave1" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#9CAEFC" stopOpacity="0.45" />
-                <stop offset="100%" stopColor="#FEC5BB" stopOpacity="0.45" />
-              </linearGradient>
-              <linearGradient id="lwave2" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#BAADFB" stopOpacity="0.35" />
-                <stop offset="100%" stopColor="#E3B5E9" stopOpacity="0.35" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-
-        <div className="relative z-10 flex flex-col items-center gap-6 text-center">
-          <Image src="/logo-circle.png" alt="DIG" width={140} height={140} className="drop-shadow-md" />
-          <Image src="/logo-text.png" alt="DiG" width={120} height={60} className="object-contain" />
+      <div className="hidden lg:flex flex-col items-center justify-center flex-1 px-12">
+        <div className="flex flex-col items-center gap-6 text-center">
+          <Image src="/logo-circle.png" alt="DIG" width={210} height={210} className="drop-shadow-md" />
+          <Image src="/logo-text.png" alt="DiG" width={144} height={72} className="object-contain" />
           <div>
             <p className="text-gray-700 font-semibold text-lg tracking-wide">Understand intent. Unlock growth.</p>
             <p className="text-gray-400 text-sm mt-1">AI-powered deep intent insights for<br />smarter decisions and better outcomes.</p>
