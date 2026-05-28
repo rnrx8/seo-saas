@@ -444,10 +444,42 @@ export default function NewDashboardPage() {
   return (
     <MainLayout profile={profile} theme={theme}>
       <div className="px-8 py-8">
+        {/* ヘッダー */}
+        <div className="relative flex items-center justify-between mb-8 overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-sm px-8 py-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800 tracking-wide">SEO記事生成ダッシュボード</h1>
+            <p className="text-gray-400 text-sm mt-1">キーワードを入力して、SEO最適化された記事を自動生成します</p>
+          </div>
+          {/* マスコット装飾 */}
+          <div className="relative flex-shrink-0 w-64 h-20 select-none pointer-events-none">
+            {/* 波線SVG */}
+            <svg viewBox="0 0 260 80" className="absolute inset-0 w-full h-full" fill="none">
+              {/* 青い波線 */}
+              <path d="M0,55 C40,30 80,60 120,40 C160,20 200,50 260,35" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+              {/* オレンジの波線 */}
+              <path d="M0,65 C50,45 90,70 140,52 C180,38 220,60 260,48" stroke="#fb923c" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+              {/* ドット */}
+              <circle cx="120" cy="40" r="4" fill="#3b82f6" />
+              <circle cx="248" cy="36" r="5" fill="#fb923c" />
+              {/* スパーク */}
+              <path d="M20,20 L21.2,23 L24,24.2 L21.2,25.4 L20,28.4 L18.8,25.4 L16,24.2 L18.8,23 Z" fill="#a78bfa" opacity="0.7" />
+              <path d="M200,15 L200.8,17 L203,17.8 L200.8,18.6 L200,20.6 L199.2,18.6 L197,17.8 L199.2,17 Z" fill="#f472b6" opacity="0.7" />
+              <circle cx="50" cy="18" r="2" fill="#a78bfa" opacity="0.5" />
+              <circle cx="170" cy="25" r="1.5" fill="#60a5fa" opacity="0.5" />
+            </svg>
+            {/* マスコット */}
+            <img
+              src="/mascot.png"
+              alt=""
+              className="absolute bottom-0 right-6 h-20 object-contain drop-shadow-sm"
+            />
+          </div>
+        </div>
+
         {/* Generate form card */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-6 h-6 rounded-md bg-blue-600 flex items-center justify-center flex-shrink-0">
+            <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: 'var(--grad)' }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5} className="w-3.5 h-3.5">
                 <path d="M12 5v14M5 12h14" strokeLinecap="round" />
               </svg>
