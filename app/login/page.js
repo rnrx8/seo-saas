@@ -45,12 +45,12 @@ export default function LoginPage() {
             <path d="M0,150 C250,90 500,180 750,120 C950,70 1100,150 1200,120 L1200,220 L0,220 Z" fill="url(#lwave2)" opacity="0.7" />
             <defs>
               <linearGradient id="lwave1" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#8b9fd4" stopOpacity="0.45" />
-                <stop offset="100%" stopColor="#d4a5b5" stopOpacity="0.45" />
+                <stop offset="0%" stopColor="#8099e0" stopOpacity="0.45" />
+                <stop offset="100%" stopColor="#f0b4a4" stopOpacity="0.45" />
               </linearGradient>
               <linearGradient id="lwave2" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#a5b8e4" stopOpacity="0.35" />
-                <stop offset="100%" stopColor="#e8b0c0" stopOpacity="0.35" />
+                <stop offset="0%" stopColor="#a0b4ec" stopOpacity="0.35" />
+                <stop offset="100%" stopColor="#f4c8b8" stopOpacity="0.35" />
               </linearGradient>
             </defs>
           </svg>
