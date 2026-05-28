@@ -67,8 +67,8 @@ export default function LoginPage() {
       </div>
 
       {/* 右：ログインフォーム */}
-      <div className="flex flex-col items-center justify-center w-full lg:w-[480px] lg:flex-shrink-0 px-8">
-        <div className="glass-panel w-full max-w-sm rounded-2xl shadow-xl p-8">
+      <div className="glass-panel flex flex-col items-center justify-center w-full lg:w-[480px] lg:flex-shrink-0 px-8">
+        <div className="bg-white/60 w-full max-w-sm rounded-2xl shadow-xl p-8">
           {/* スパークアイコン */}
           <div className="text-center mb-6">
             <span className="text-2xl" style={{ background: 'var(--grad)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>✦</span>
