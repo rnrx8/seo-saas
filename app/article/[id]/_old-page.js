@@ -24,6 +24,24 @@ function stripInternalPreamble(text) {
   return text
 }
 
+function parseOutlineForDisplay(outlineText) {
+  if (!outlineText) return { titlePatterns: null, summarySection: '', mainOutline: '' }
+
+  function extractAndRemove(text, keyword) {
+    const re = new RegExp(`###[^\\n]*${keyword}[^\\n]*\\n[\\s\\S]*?(?=\\n###|\\n##[^#]|$)`)
+    const m = text.match(re)
+    if (!m) return { extracted: null, remaining: text }
+    return { extracted: m[0].trim(), remaining: text.replace(m[0], '').replace(/\n{3,}/g, '\n\n') }
+  }
+
+  const { extracted: titlePatterns, remaining: r1 } = extractAndRemove(outlineText, 'タイトル案')
+  const { extracted: wordCountSection, remaining: r2 } = extractAndRemove(r1, '目標文字数')
+  const { extracted: leadSection, remaining: r3 } = extractAndRemove(r2, 'リード文')
+
+  const summarySection = [wordCountSection, leadSection].filter(Boolean).join('\n\n')
+  return { titlePatterns, summarySection, mainOutline: r3.trim() }
+}
+
 const MD_COMPONENTS = {
   h1:     ({ children }) => <h1 className="text-2xl font-bold mt-6 mb-3">{children}</h1>,
   h2:     ({ children }) => <h2 className="text-xl font-bold mt-5 mb-2 border-b pb-1">{children}</h2>,
@@ -58,6 +76,7 @@ export default function ArticlePage({ params }) {
   const [error, setError] = useState('')
   const [showPanel, setShowPanel] = useState(false)
   const [wpConfigured, setWpConfigured] = useState(false)
+  const [job, setJob] = useState(null)
 
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
@@ -67,8 +86,18 @@ export default function ArticlePage({ params }) {
       }
       fetchArtifacts()
       fetchWpConfig()
+      fetchJob()
     })
   }, [id])
+
+  async function fetchJob() {
+    const { data } = await getSupabase()
+      .from('jobs')
+      .select('id, main_keyword, word_count_setting')
+      .eq('id', id)
+      .single()
+    if (data) setJob(data)
+  }
 
   async function fetchArtifacts() {
     const { data, error } = await getSupabase()
@@ -103,6 +132,11 @@ export default function ArticlePage({ params }) {
   }
 
   const isLoading = Object.keys(artifacts).length === 0 && !error
+
+  const { titlePatterns, summarySection, mainOutline } = useMemo(
+    () => parseOutlineForDisplay(artifacts['outline']),
+    [artifacts['outline']]
+  )
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -150,13 +184,21 @@ export default function ArticlePage({ params }) {
             {/* Tab content */}
             <div className="p-8">
               {activeTab === 'article' && (
-                <ArticleView
-                  markdown={stripInternalPreamble(artifacts['article'] ?? '')}
-                  onOpenPanel={() => setShowPanel(true)}
-                  wpConfigured={wpConfigured}
-                  jobId={id}
-                  onApplyReorder={(newMd) => setArtifacts(prev => ({ ...prev, article: newMd }))}
-                />
+                <div>
+                  {titlePatterns && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4">
+                      <p className="text-xs font-semibold text-gray-500 mb-2">タイトル案（構成案より）</p>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{titlePatterns}</ReactMarkdown>
+                    </div>
+                  )}
+                  <ArticleView
+                    markdown={stripInternalPreamble(artifacts['article'] ?? '')}
+                    onOpenPanel={() => setShowPanel(true)}
+                    wpConfigured={wpConfigured}
+                    jobId={id}
+                    onApplyReorder={(newMd) => setArtifacts(prev => ({ ...prev, article: newMd }))}
+                  />
+                </div>
               )}
 
               {activeTab === 'search_intent' && (
@@ -166,9 +208,19 @@ export default function ArticlePage({ params }) {
               )}
 
               {activeTab === 'outline' && (
-                <article className="max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{artifacts['outline'] ?? '（データなし）'}</ReactMarkdown>
-                </article>
+                <div className="max-w-none">
+                  {summarySection && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-6">
+                      <p className="text-xs font-semibold text-blue-700 mb-3">構成サマリー</p>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{summarySection}</ReactMarkdown>
+                    </div>
+                  )}
+                  <article className="max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
+                      {mainOutline || artifacts['outline'] || '（データなし）'}
+                    </ReactMarkdown>
+                  </article>
+                </div>
               )}
 
               {activeTab === 'fact_sheet' && (
@@ -182,7 +234,7 @@ export default function ArticlePage({ params }) {
               )}
 
               {activeTab === 'serp' && (
-                <SerpView content={artifacts['serp']} queryAttrs={artifacts['query_attrs']} />
+                <SerpView content={artifacts['serp']} queryAttrs={artifacts['query_attrs']} wordCountSetting={job?.word_count_setting} />
               )}
 
               {activeTab === 'llmo' && (
@@ -439,11 +491,11 @@ function HeadingsList({ headings, fetchStatus }) {
   )
 }
 
-function QueryAttrsCard({ content }) {
-  if (!content) return null
+function QueryAttrsCard({ content, wordCountSetting }) {
+  if (!content && !wordCountSetting) return null
   let attrs = null
-  try { attrs = JSON.parse(content) } catch { return null }
-  if (!attrs) return null
+  if (content) try { attrs = JSON.parse(content) } catch {}
+  if (!attrs && !wordCountSetting) return null
 
   const STAGE_COLOR = {
     '情報収集': 'bg-blue-100 text-blue-800',
@@ -507,12 +559,18 @@ function QueryAttrsCard({ content }) {
             <p className="text-xs text-gray-700">{attrs.notes}</p>
           </div>
         )}
+        {wordCountSetting && (
+          <div className={`col-span-2 ${attrs ? 'pt-3 mt-1 border-t border-blue-200' : ''}`}>
+            <p className="text-xs text-gray-500 mb-1">目標文字数設定</p>
+            <p className="font-medium text-gray-800">{wordCountSetting}</p>
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-function SerpView({ content, queryAttrs }) {
+function SerpView({ content, queryAttrs, wordCountSetting }) {
   if (!content) return <p className="text-gray-400 text-sm">（データなし）</p>
 
   let organicResults = null
@@ -537,7 +595,7 @@ function SerpView({ content, queryAttrs }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <QueryAttrsCard content={queryAttrs} />
+      <QueryAttrsCard content={queryAttrs} wordCountSetting={wordCountSetting} />
       {organicResults.map((item, i) => {
         const url = item.link ?? item.url ?? ''
         const heading = headingsMap[url]
@@ -564,7 +622,12 @@ function SerpView({ content, queryAttrs }) {
                   />
                 )}
               </div>
-              <span className="text-xs text-gray-400 shrink-0">#{i + 1}</span>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <span className="text-xs text-gray-400">#{i + 1}</span>
+                {heading?.word_count > 0 && (
+                  <span className="text-xs text-gray-400">{heading.word_count.toLocaleString()}字</span>
+                )}
+              </div>
             </div>
           </div>
         )
