@@ -64,6 +64,7 @@ const TABS = [
   { key: 'fact_sheet',    label: 'ファクトシート' },
   { key: 'paa_lsi',       label: 'PAA・LSI' },
   { key: 'serp',          label: '競合情報' },
+  { key: 'llmo',          label: 'LLMO' },
 ]
 
 const VIEWS = [
@@ -276,6 +277,9 @@ export default function NewArticlePage({ params }) {
                 )}
                 {activeTab === 'serp' && (
                   <SerpView content={artifacts['serp']} queryAttrs={artifacts['query_attrs']} wordCountSetting={job?.word_count_setting} />
+                )}
+                {activeTab === 'llmo' && (
+                  <LlmoView markdown={artifacts['article'] ?? ''} />
                 )}
               </>
             )}
@@ -689,6 +693,90 @@ function SerpView({ content, queryAttrs, wordCountSetting }) {
           </div>
         )
       })}
+    </div>
+  )
+}
+
+// ── LlmoView ─────────────────────────────────────────────────────────────────
+
+function LlmoView({ markdown }) {
+  const [schema, setSchema] = useState(null)
+  const [generating, setGenerating] = useState(false)
+  const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  async function handleGenerate() {
+    setGenerating(true)
+    setError('')
+    setSchema(null)
+    try {
+      const res = await fetch('/api/generate-faq-schema', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ article_text: markdown }),
+      })
+      const data = await res.json()
+      if (data.error) setError(data.error)
+      else setSchema(data.schema)
+    } catch {
+      setError('通信エラーが発生しました')
+    }
+    setGenerating(false)
+  }
+
+  async function handleCopy() {
+    if (!schema) return
+    await navigator.clipboard.writeText(JSON.stringify(schema, null, 2))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <section>
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h2 className="text-base font-semibold text-gray-800">FAQスキーマ（schema.org）</h2>
+            <p className="text-xs text-gray-500 mt-1">
+              記事内のFAQや疑問詞見出しからJSON-LDを生成します。<br />
+              生成後、&lt;script type="application/ld+json"&gt;タグで記事ページに埋め込んでください。
+            </p>
+          </div>
+          <button
+            onClick={handleGenerate}
+            disabled={generating || !markdown}
+            className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {generating ? '生成中...' : 'FAQスキーマ生成'}
+          </button>
+        </div>
+        {error && (
+          <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3">{error}</p>
+        )}
+        {schema && (
+          <div>
+            <div className="flex justify-end mb-2">
+              <button
+                onClick={handleCopy}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-600 hover:border-gray-300 transition-colors"
+              >
+                {copied ? 'コピーしました！' : 'コピー'}
+              </button>
+            </div>
+            <pre className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-xs text-gray-800 overflow-auto whitespace-pre-wrap leading-relaxed">
+              {JSON.stringify(schema, null, 2)}
+            </pre>
+          </div>
+        )}
+        {!schema && !error && !generating && (
+          <p className="text-sm text-gray-400 text-center py-10">「FAQスキーマ生成」ボタンを押すとJSON-LDが生成されます</p>
+        )}
+        {generating && (
+          <div className="flex justify-center py-10">
+            <span className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+      </section>
     </div>
   )
 }
