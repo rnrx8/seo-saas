@@ -99,7 +99,7 @@ export default function AdminUsersPage() {
             ) : (
               filtered.map(u => (
                 <tr key={u.id} className="hover:bg-gray-50/60 transition-colors">
-                  <td className="px-5 py-3 text-sm text-gray-800">{u.email}</td>
+                  <td className="px-5 py-3 text-sm text-gray-600">{u.email}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PLAN_BADGE[u.plan] ?? 'bg-gray-100 text-gray-600'}`}>
                       {PLAN_LABELS[u.plan] ?? u.plan}

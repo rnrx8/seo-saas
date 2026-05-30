@@ -8,7 +8,7 @@ export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 px-8 py-4">
-        <Link href="/" className="text-xl font-bold text-gray-800">SEO記事生成</Link>
+        <Link href="/" className="text-xl font-bold text-gray-600">SEO記事生成</Link>
       </header>
 
       <main className="max-w-3xl mx-auto px-8 py-12">

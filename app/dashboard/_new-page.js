@@ -477,7 +477,7 @@ export default function NewDashboardPage() {
                   <path d="M12 5v14M5 12h14" strokeLinecap="round" />
                 </svg>
               </div>
-              <h2 className="font-semibold text-gray-800">新規記事生成</h2>
+              <h2 className="font-semibold text-gray-600">新規記事生成</h2>
             </div>
             <img src="/mascot.png" alt="" className="h-14 object-contain select-none pointer-events-none" />
           </div>
@@ -521,7 +521,7 @@ export default function NewDashboardPage() {
                     onClick={() => setBulkMode(opt.v)}
                     disabled={generating}
                     className={`px-3 py-1 rounded-md text-xs font-medium transition-colors disabled:opacity-50 ${
-                      bulkMode === opt.v ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                      bulkMode === opt.v ? 'bg-white text-gray-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
                     {opt.label}
@@ -954,7 +954,7 @@ export default function NewDashboardPage() {
         {/* Jobs table */}
         <div className="glass-panel rounded-2xl shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4">
-            <h2 className="font-semibold text-gray-800">生成済み記事一覧</h2>
+            <h2 className="font-semibold text-gray-600">生成済み記事一覧</h2>
             <div className="flex items-center gap-3">
               <input
                 type="text"
@@ -1009,7 +1009,7 @@ export default function NewDashboardPage() {
                 filteredJobs.map(job => (
                   <tr key={job.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-800">{job.main_keyword}</div>
+                      <div className="text-sm font-medium text-gray-600">{job.main_keyword}</div>
                       {job.status === 'running' && job.current_step && <StepProgress currentStep={job.current_step} />}
                     </td>
                     <td className="px-4 py-4"><StatusBadge status={job.status} /></td>

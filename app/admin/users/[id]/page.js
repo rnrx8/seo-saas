@@ -104,21 +104,21 @@ export default function AdminUserDetailPage() {
           <dl className="grid grid-cols-2 gap-x-8 gap-y-3">
             <div>
               <dt className="text-xs text-gray-400">プラン</dt>
-              <dd className="text-sm font-medium text-gray-800 mt-0.5">{PLAN_LABELS[profile?.plan] ?? profile?.plan ?? '—'}</dd>
+              <dd className="text-sm font-medium text-gray-600 mt-0.5">{PLAN_LABELS[profile?.plan] ?? profile?.plan ?? '—'}</dd>
             </div>
             <div>
               <dt className="text-xs text-gray-400">クレジット残 / 合計</dt>
-              <dd className="text-sm font-medium text-gray-800 mt-0.5">
+              <dd className="text-sm font-medium text-gray-600 mt-0.5">
                 {isPro ? <span className="text-purple-600">無制限</span> : `${profile?.credits_remaining ?? 0} / ${profile?.credits_total ?? 0}`}
               </dd>
             </div>
             <div>
               <dt className="text-xs text-gray-400">登録企業数</dt>
-              <dd className="text-sm text-gray-800 mt-0.5">{companies?.length ?? 0}社</dd>
+              <dd className="text-sm text-gray-600 mt-0.5">{companies?.length ?? 0}社</dd>
             </div>
             <div>
               <dt className="text-xs text-gray-400">完了記事数（直近20件中）</dt>
-              <dd className="text-sm text-gray-800 mt-0.5">{doneCount}件</dd>
+              <dd className="text-sm text-gray-600 mt-0.5">{doneCount}件</dd>
             </div>
           </dl>
         </div>
@@ -191,7 +191,7 @@ export default function AdminUserDetailPage() {
                 const s = STATUS_MAP[job.status] ?? { bg: '#f3f4f6', color: '#6b7280', label: job.status }
                 return (
                   <tr key={job.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-5 py-3 text-sm text-gray-800">{job.main_keyword}</td>
+                    <td className="px-5 py-3 text-sm text-gray-600">{job.main_keyword}</td>
                     <td className="px-4 py-3">
                       <span
                         className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"

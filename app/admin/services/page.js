@@ -85,7 +85,7 @@ export default function AdminServicesPage() {
               </div>
               <div className="mb-2">
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="font-medium text-gray-800">残り <strong style={{ color: serpBarColor }}>{serpLeft}</strong> 回</span>
+                  <span className="font-medium text-gray-600">残り <strong style={{ color: serpBarColor }}>{serpLeft}</strong> 回</span>
                   <span className="text-gray-400">/ 月{serpTotal}回</span>
                 </div>
                 <div className="w-full bg-gray-100 rounded-full h-2">

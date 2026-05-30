@@ -295,11 +295,11 @@ export default function NewArticlePage({ params }) {
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-gray-50 rounded-xl p-3">
                   <p className="text-xs text-gray-400 mb-1">文字数</p>
-                  <p className="text-lg font-bold text-gray-800">{charCount.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-gray-600">{charCount.toLocaleString()}</p>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-3">
                   <p className="text-xs text-gray-400 mb-1">H2見出し</p>
-                  <p className="text-lg font-bold text-gray-800">{h2Count}</p>
+                  <p className="text-lg font-bold text-gray-600">{h2Count}</p>
                 </div>
               </div>
 
@@ -405,7 +405,7 @@ function ArticleView({ markdown, onOpenPanel, onApplyReorder, wpConfigured, jobI
               onClick={() => setView(v.key)}
               className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
                 view === v.key
-                  ? 'bg-white text-gray-800 shadow-sm font-medium'
+                  ? 'bg-white text-gray-600 shadow-sm font-medium'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -469,12 +469,12 @@ function ArticleView({ markdown, onOpenPanel, onApplyReorder, wpConfigured, jobI
         </article>
       )}
       {view === 'markdown' && (
-        <pre className="bg-gray-50 border border-gray-100 p-4 rounded-xl overflow-auto whitespace-pre-wrap text-sm text-gray-800">
+        <pre className="bg-gray-50 border border-gray-100 p-4 rounded-xl overflow-auto whitespace-pre-wrap text-sm text-gray-600">
           {markdown}
         </pre>
       )}
       {view === 'html' && (
-        <pre className="bg-gray-50 border border-gray-100 p-4 rounded-xl overflow-auto whitespace-pre-wrap text-sm text-gray-800">
+        <pre className="bg-gray-50 border border-gray-100 p-4 rounded-xl overflow-auto whitespace-pre-wrap text-sm text-gray-600">
           {html}
         </pre>
       )}
@@ -504,14 +504,14 @@ function PaaLsiView({ content }) {
   return (
     <div className="flex flex-col gap-8">
       <section>
-        <h2 className="text-base font-semibold text-gray-800 mb-3">よくある質問（PAA）</h2>
+        <h2 className="text-base font-semibold text-gray-600 mb-3">よくある質問（PAA）</h2>
         {paa.length === 0 ? (
           <p className="text-gray-400 text-sm">取得できませんでした</p>
         ) : (
           <div className="flex flex-col gap-3">
             {paa.map((item, i) => (
               <div key={i} className="border border-gray-100 rounded-xl p-4 bg-gray-50">
-                <p className="font-medium text-gray-800 text-sm mb-1">Q. {item.question}</p>
+                <p className="font-medium text-gray-600 text-sm mb-1">Q. {item.question}</p>
                 {item.snippet && <p className="text-gray-600 text-sm leading-relaxed">{item.snippet}</p>}
               </div>
             ))}
@@ -520,7 +520,7 @@ function PaaLsiView({ content }) {
       </section>
 
       <section>
-        <h2 className="text-base font-semibold text-gray-800 mb-3">関連キーワード（LSI候補）</h2>
+        <h2 className="text-base font-semibold text-gray-600 mb-3">関連キーワード（LSI候補）</h2>
         {related.length === 0 ? (
           <p className="text-gray-400 text-sm">取得できませんでした</p>
         ) : (
@@ -561,11 +561,11 @@ function QueryAttrsCard({ content, wordCountSetting }) {
           <>
             <div>
               <p className="text-xs text-gray-500 mb-1">性別傾向</p>
-              <p className="font-medium text-gray-800">{attrs.gender_tendency ?? '—'}</p>
+              <p className="font-medium text-gray-600">{attrs.gender_tendency ?? '—'}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 mb-1">推定年齢層</p>
-              <p className="font-medium text-gray-800">{attrs.age_range ?? '—'}</p>
+              <p className="font-medium text-gray-600">{attrs.age_range ?? '—'}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 mb-1">検索ステージ</p>
@@ -610,7 +610,7 @@ function QueryAttrsCard({ content, wordCountSetting }) {
         {wordCountSetting && (
           <div className={`col-span-2 ${attrs ? 'pt-3 mt-1 border-t border-blue-200' : ''}`}>
             <p className="text-xs text-gray-500 mb-1">目標文字数設定</p>
-            <p className="font-medium text-gray-800">{wordCountSetting}</p>
+            <p className="font-medium text-gray-600">{wordCountSetting}</p>
           </div>
         )}
       </div>
@@ -736,7 +736,7 @@ function LlmoView({ markdown }) {
       <section>
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h2 className="text-base font-semibold text-gray-800">FAQスキーマ（schema.org）</h2>
+            <h2 className="text-base font-semibold text-gray-600">FAQスキーマ（schema.org）</h2>
             <p className="text-xs text-gray-500 mt-1">
               記事内のFAQや疑問詞見出しからJSON-LDを生成します。<br />
               生成後、&lt;script type="application/ld+json"&gt;タグで記事ページに埋め込んでください。
@@ -763,7 +763,7 @@ function LlmoView({ markdown }) {
                 {copied ? 'コピーしました！' : 'コピー'}
               </button>
             </div>
-            <pre className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-xs text-gray-800 overflow-auto whitespace-pre-wrap leading-relaxed">
+            <pre className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-xs text-gray-600 overflow-auto whitespace-pre-wrap leading-relaxed">
               {JSON.stringify(schema, null, 2)}
             </pre>
           </div>
@@ -873,7 +873,7 @@ function SectionReorderPanel({ markdown, onClose, onApply }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 flex flex-col max-h-[80vh]">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-800">セクション並び替え</h2>
+          <h2 className="font-semibold text-gray-600">セクション並び替え</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
               <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
@@ -1037,7 +1037,7 @@ function EditAssistPanel({ open, onClose, jobId, articleText, intentText, onAppl
       <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
       <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-50 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
-          <h2 className="font-semibold text-gray-800">編集アシスト</h2>
+          <h2 className="font-semibold text-gray-600">編集アシスト</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
         </div>
 

@@ -198,7 +198,7 @@ export default function PresetsPage() {
       <div className="max-w-4xl mx-auto px-8 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-xl font-semibold text-gray-800">プリセット一覧</h1>
+            <h1 className="text-xl font-semibold text-gray-600">プリセット一覧</h1>
             <p className="text-xs text-gray-500 mt-0.5">記事生成の設定をプリセットとして保存・呼び出せます</p>
           </div>
           <button
@@ -223,7 +223,7 @@ export default function PresetsPage() {
               <div key={preset.id} className="bg-white rounded-xl border border-gray-200 p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-800 mb-2">{preset.name}</p>
+                    <p className="font-semibold text-gray-600 mb-2">{preset.name}</p>
                     <ConditionTags preset={preset} />
                     <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500">
                       {preset.word_count_setting && <span>文字数: {preset.word_count_setting}</span>}
@@ -260,7 +260,7 @@ export default function PresetsPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
-              <h3 className="font-semibold text-gray-800">
+              <h3 className="font-semibold text-gray-600">
                 {modal.mode === 'add' ? 'プリセットを追加' : 'プリセットを編集'}
               </h3>
               <button onClick={() => setModal(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>

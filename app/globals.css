@@ -41,8 +41,9 @@ body {
 /* リキッドガラスパネル — 左上から光が当たる想定 */
 .glass-panel {
   background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(3.5px) saturate(90%) !important;
+  /* -webkit- を先・標準を後に置く（古いSafari互換 + 標準採用の正順） */
   -webkit-backdrop-filter: blur(3.5px) saturate(90%) !important;
+  backdrop-filter: blur(3.5px) saturate(90%) !important;
   /* 非対称ボーダー：top/left明、right/bottom暗 */
   border-top: 1px solid rgba(255, 255, 255, 0.88);
   border-left: 1px solid rgba(255, 255, 255, 0.65);

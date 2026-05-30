@@ -56,9 +56,9 @@ export default function AdminDashboardPage() {
       {/* Plan breakdown */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-gray-800">プラン内訳</h2>
+          <h2 className="text-base font-semibold text-gray-600">プラン内訳</h2>
           <span className="text-sm text-gray-500">
-            課金転換率 <span className="font-semibold text-gray-800">{conversionRate}%</span>
+            課金転換率 <span className="font-semibold text-gray-600">{conversionRate}%</span>
             <span className="text-xs text-gray-400 ml-1">（フリー→有料）</span>
           </span>
         </div>
@@ -74,7 +74,7 @@ export default function AdminDashboardPage() {
               <div key={p.key} className={`rounded-xl p-4 ${p.cardBg}`}>
                 <div className="flex items-center justify-between mb-2">
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${p.badge}`}>{p.label}</span>
-                  <span className="text-2xl font-bold text-gray-800">{count}<span className="text-sm font-normal text-gray-500 ml-0.5">人</span></span>
+                  <span className="text-2xl font-bold text-gray-600">{count}<span className="text-sm font-normal text-gray-500 ml-0.5">人</span></span>
                 </div>
                 <div className="h-1.5 bg-black/10 rounded-full overflow-hidden">
                   <div className={`h-full rounded-full transition-all ${p.bar}`} style={{ width: `${pct}%` }} />

@@ -197,7 +197,7 @@ export default function SourcesPage() {
     <MainLayout profile={profile} theme={theme}>
       <div className="max-w-4xl mx-auto px-8 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-800">一次情報管理</h2>
+          <h2 className="text-xl font-semibold text-gray-600">一次情報管理</h2>
           <button
             onClick={openAdd}
             className="btn-gradient text-sm px-4 py-2 rounded-lg transition-colors"
@@ -221,7 +221,7 @@ export default function SourcesPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-gray-800">{src.title}</span>
+                      <span className="font-semibold text-gray-600">{src.title}</span>
                       {src.category && (
                         <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{src.category}</span>
                       )}
@@ -268,7 +268,7 @@ export default function SourcesPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-800">{modal.editId ? '資料を編集' : '資料を追加'}</h3>
+              <h3 className="font-semibold text-gray-600">{modal.editId ? '資料を編集' : '資料を追加'}</h3>
               <button onClick={() => setModal(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
             </div>
 

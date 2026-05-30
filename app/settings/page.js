@@ -218,7 +218,7 @@ export default function SettingsPage() {
       <div className="max-w-3xl mx-auto px-8 py-8 flex flex-col gap-8">
         {/* ユーザー名 */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-1">ユーザー名</h2>
+          <h2 className="text-lg font-semibold text-gray-600 mb-1">ユーザー名</h2>
           <p className="text-xs text-gray-500 mb-4">設定するとユーザー名でもログインできます。サイドバーに表示されます。</p>
           <div className="flex gap-3 items-center">
             <input
@@ -247,23 +247,23 @@ export default function SettingsPage() {
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           {PLAN_UI_ENABLED ? (
             <>
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">現在のプラン</h2>
+              <h2 className="text-lg font-semibold text-gray-600 mb-4">現在のプラン</h2>
               <div className="grid grid-cols-3 gap-6">
                 <div>
                   <p className="text-xs text-gray-500 mb-1">プラン</p>
-                  <p className="text-lg font-semibold text-gray-800">
+                  <p className="text-lg font-semibold text-gray-600">
                     {PLAN_LABELS[profile?.plan] ?? profile?.plan ?? '—'}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 mb-1">残りクレジット</p>
-                  <p className={`text-lg font-semibold ${!isPro && profile?.credits_remaining <= 1 ? 'text-red-600' : 'text-gray-800'}`}>
+                  <p className={`text-lg font-semibold ${!isPro && profile?.credits_remaining <= 1 ? 'text-red-600' : 'text-gray-600'}`}>
                     {isPro ? '無制限' : `${profile?.credits_remaining ?? 0} 記事`}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 mb-1">累計使用数</p>
-                  <p className="text-lg font-semibold text-gray-800">
+                  <p className="text-lg font-semibold text-gray-600">
                     {isPro ? '—' : `${usedCredits} 記事`}
                   </p>
                 </div>
@@ -284,8 +284,8 @@ export default function SettingsPage() {
             </>
           ) : (
             <>
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">クレジット残高</h2>
-              <p className={`text-3xl font-bold ${(profile?.credits_remaining ?? 0) <= 1 ? 'text-red-600' : 'text-gray-800'}`}>
+              <h2 className="text-lg font-semibold text-gray-600 mb-4">クレジット残高</h2>
+              <p className={`text-3xl font-bold ${(profile?.credits_remaining ?? 0) <= 1 ? 'text-red-600' : 'text-gray-600'}`}>
                 {profile?.credits_remaining ?? 0}
                 <span className="text-base font-medium text-gray-400 ml-1">クレジット</span>
               </p>
@@ -309,7 +309,7 @@ export default function SettingsPage() {
           <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-gray-800">クレジットを追加購入</h2>
+                <h2 className="text-lg font-semibold text-gray-600">クレジットを追加購入</h2>
                 <p className="text-sm text-gray-500 mt-1">10記事単位で購入できます（準備中）</p>
               </div>
               <button
@@ -325,7 +325,7 @@ export default function SettingsPage() {
         {/* Plan list（月額制クライアント向け。従量課金モードでは非表示） */}
         {PLAN_UI_ENABLED && (
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">プランを変更する</h2>
+          <h2 className="text-lg font-semibold text-gray-600 mb-4">プランを変更する</h2>
           <div className="flex flex-col gap-4">
             {PLANS.map((plan) => {
               const isCurrent = profile?.plan === plan.id
@@ -339,7 +339,7 @@ export default function SettingsPage() {
                   <div className="flex items-center gap-4">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-gray-800">{plan.name}</span>
+                        <span className="font-semibold text-gray-600">{plan.name}</span>
                         {isCurrent && (
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${plan.badge}`}>
                             現在のプラン
@@ -368,7 +368,7 @@ export default function SettingsPage() {
         )}
         {/* 生成デフォルト設定 */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-1">生成デフォルト設定</h2>
+          <h2 className="text-lg font-semibold text-gray-600 mb-1">生成デフォルト設定</h2>
           <p className="text-xs text-gray-500 mb-4">記事生成フォームを開いたときのデフォルト設定です。プリセット選択時はプリセット側の設定が優先されます。</p>
           <div className="flex items-start gap-3 border rounded-lg px-4 py-4 border-amber-200 bg-amber-50">
             <input
@@ -397,7 +397,7 @@ export default function SettingsPage() {
 
         {/* WordPress連携 */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-1">WordPress連携</h2>
+          <h2 className="text-lg font-semibold text-gray-600 mb-1">WordPress連携</h2>
           <p className="text-xs text-gray-500 mb-4">設定するとWordPressへ記事を下書き投稿できます。</p>
           <div className="flex flex-col gap-3">
             {/* 認証方式 */}
@@ -477,7 +477,7 @@ export default function SettingsPage() {
 
         {/* Data management */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">データ管理</h2>
+          <h2 className="text-lg font-semibold text-gray-600 mb-4">データ管理</h2>
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div>

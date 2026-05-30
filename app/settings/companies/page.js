@@ -167,7 +167,7 @@ export default function CompaniesPage() {
         {!loading && categories.length > 0 && (
           <section className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="text-base font-semibold text-gray-800">カテゴリ別設定</h2>
+              <h2 className="text-base font-semibold text-gray-600">カテゴリ別設定</h2>
             </div>
             <table className="w-full text-sm">
               <tbody className="divide-y divide-gray-100">
@@ -213,7 +213,7 @@ export default function CompaniesPage() {
         {/* 企業一覧 */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">企業管理</h2>
+            <h2 className="text-xl font-semibold text-gray-600">企業管理</h2>
             <button
               onClick={openAdd}
               className="btn-gradient text-sm px-4 py-2 rounded-lg transition-colors"
@@ -237,7 +237,7 @@ export default function CompaniesPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
-                        <span className="font-semibold text-gray-800">{company.name}</span>
+                        <span className="font-semibold text-gray-600">{company.name}</span>
                         {company.category && (
                           <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{company.category}</span>
                         )}
@@ -277,7 +277,7 @@ export default function CompaniesPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-800">
+              <h3 className="font-semibold text-gray-600">
                 {modal.mode === 'add' ? '企業を追加' : '企業を編集'}
               </h3>
               <button onClick={() => setModal(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>

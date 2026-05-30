@@ -123,7 +123,7 @@ export default function AdminJobsPage() {
                   return (
                     <>
                       <tr key={job.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-5 py-3 text-sm text-gray-800 max-w-xs">
+                        <td className="px-5 py-3 text-sm text-gray-600 max-w-xs">
                           <span className="block truncate">{job.main_keyword}</span>
                         </td>
                         <td className="px-4 py-3">
