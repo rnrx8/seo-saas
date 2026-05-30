@@ -17,7 +17,24 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const { error } = await getSupabase().auth.signInWithPassword({ email, password })
+
+    let loginEmail = email.trim()
+    if (!loginEmail.includes('@')) {
+      const res = await fetch('/api/lookup-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loginEmail }),
+      })
+      if (!res.ok) {
+        setError('ユーザー名が見つかりません')
+        setLoading(false)
+        return
+      }
+      const data = await res.json()
+      loginEmail = data.email
+    }
+
+    const { error } = await getSupabase().auth.signInWithPassword({ email: loginEmail, password })
     if (error) {
       setError(error.message)
       setLoading(false)
@@ -52,7 +69,7 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1.5">メールアドレス</label>
+              <label className="block text-sm font-medium text-gray-600 mb-1.5">メールアドレス / ユーザー名</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
@@ -60,11 +77,11 @@ export default function LoginPage() {
                   </svg>
                 </span>
                 <input
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
-                  placeholder="you@company.com"
+                  placeholder="you@company.com またはユーザー名"
                   className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-2.5 text-sm text-gray-700 bg-white/80 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-transparent placeholder-gray-300"
                 />
               </div>

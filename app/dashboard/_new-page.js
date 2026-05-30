@@ -128,7 +128,7 @@ export default function NewDashboardPage() {
       } else {
         setAuthChecked(true)
         fetchJobs()
-        fetchProfile(session.user.id)
+        fetchProfile(session.user.id, session.user.email)
         fetchTheme(session.user.id)
         fetchPresets()
         fetchAllServices()
@@ -141,10 +141,10 @@ export default function NewDashboardPage() {
 
   useEffect(() => () => { if (pollingId) clearInterval(pollingId) }, [pollingId])
 
-  const fetchProfile = useCallback(async (userId) => {
+  const fetchProfile = useCallback(async (userId, email = '') => {
     const { data } = await getSupabase().from('user_profiles').select('*').eq('id', userId).single()
     if (data) {
-      setProfile(data)
+      setProfile({ ...data, email })
       setHighAccuracyMode(data.high_accuracy_mode_default ?? false)
     }
   }, [])
@@ -401,6 +401,26 @@ export default function NewDashboardPage() {
     }, 5000)
     setPollingId(id)
     setPollingJobId(job.id)
+  }
+
+  async function handleRetry(job) {
+    await getSupabase().from('jobs').update({ status: 'queued', error_message: null, current_step: null }).eq('id', job.id)
+    await fetchJobs()
+
+    fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_id: job.id, keyword: job.main_keyword }),
+    }).catch(() => {})
+
+    setStatusMessage({ type: 'info', text: `「${job.main_keyword}」を再実行しました` })
+
+    // ジョブリストを2分間ポーリングして表示を更新
+    let count = 0
+    const id = setInterval(async () => {
+      await fetchJobs()
+      if (++count >= 24) clearInterval(id)
+    }, 5000)
   }
 
   async function handleStop() {
@@ -1000,6 +1020,13 @@ export default function NewDashboardPage() {
                         <Link href={`/article/${job.id}`} className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">
                           記事を見る →
                         </Link>
+                      ) : job.status === 'failed' ? (
+                        <button
+                          onClick={() => handleRetry(job)}
+                          className="text-xs font-medium text-orange-600 hover:text-orange-700 transition-colors"
+                        >
+                          再実行
+                        </button>
                       ) : (
                         <span className="text-xs text-gray-300">—</span>
                       )}

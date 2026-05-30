@@ -61,6 +61,9 @@ export default function SettingsPage() {
   const [highAccuracyDefault, setHighAccuracyDefault] = useState(false)
   const [accuracySaving, setAccuracySaving] = useState(false)
   const [accuracySaveMsg, setAccuracySaveMsg] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [displayNameSaving, setDisplayNameSaving] = useState(false)
+  const [displayNameMsg, setDisplayNameMsg] = useState('')
 
   const fetchProfile = useCallback(async (userId) => {
     const { data } = await getSupabase()
@@ -74,6 +77,7 @@ export default function SettingsPage() {
     setWpAppPassword(data?.wp_app_password ?? '')
     setWpAuthType(data?.wp_auth_type ?? 'app_password')
     setHighAccuracyDefault(data?.high_accuracy_mode_default ?? false)
+    setDisplayName(data?.display_name ?? '')
     setLoading(false)
   }, [])
 
@@ -103,6 +107,19 @@ export default function SettingsPage() {
     setWpSaving(false)
     setWpSaveMsg(error ? '保存に失敗しました' : '保存しました')
     setTimeout(() => setWpSaveMsg(''), 3000)
+  }
+
+  async function handleDisplayNameSave() {
+    setDisplayNameSaving(true)
+    setDisplayNameMsg('')
+    const trimmed = displayName.trim()
+    const { error } = await getSupabase()
+      .from('user_profiles')
+      .update({ display_name: trimmed || null })
+      .eq('id', profile.id)
+    setDisplayNameSaving(false)
+    setDisplayNameMsg(error ? (error.message.includes('unique') ? 'そのユーザー名は既に使われています' : '保存に失敗しました') : '保存しました')
+    setTimeout(() => setDisplayNameMsg(''), 3000)
   }
 
   function handleUpgrade(planId) {
@@ -198,6 +215,33 @@ export default function SettingsPage() {
   return (
     <MainLayout profile={profile} theme={theme}>
       <div className="max-w-3xl mx-auto px-8 py-8 flex flex-col gap-8">
+        {/* ユーザー名 */}
+        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-1">ユーザー名</h2>
+          <p className="text-xs text-gray-500 mb-4">設定するとユーザー名でもログインできます。サイドバーに表示されます。</p>
+          <div className="flex gap-3 items-center">
+            <input
+              type="text"
+              value={displayName}
+              onChange={e => setDisplayName(e.target.value)}
+              placeholder="例：yamada_taro"
+              className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-transparent placeholder-gray-300"
+            />
+            <button
+              onClick={handleDisplayNameSave}
+              disabled={displayNameSaving}
+              className="btn-gradient px-4 py-2.5 text-sm rounded-xl disabled:opacity-50"
+            >
+              {displayNameSaving ? '保存中...' : '保存'}
+            </button>
+          </div>
+          {displayNameMsg && (
+            <p className={`text-xs mt-2 ${displayNameMsg === '保存しました' ? 'text-green-600' : 'text-red-500'}`}>
+              {displayNameMsg}
+            </p>
+          )}
+        </section>
+
         {/* Current plan summary */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">現在のプラン</h2>

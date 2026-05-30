@@ -84,9 +84,9 @@ export default function Sidebar({ profile, theme }) {
     <aside className="flex flex-col h-screen w-56 flex-shrink-0 glass-panel border-r border-white/40">
       {/* Logo */}
       <div className="px-5 py-5 border-b border-gray-100">
-        <div className="flex items-center gap-2.5">
-          <Image src="/logo-circle.png" alt="logo" width={36} height={36} className="flex-shrink-0" />
-          <Image src="/logo-text.png" alt="DiG" width={48} height={24} className="object-contain" />
+        <div className="flex flex-col items-center gap-2">
+          <Image src="/logo-circle.png" alt="logo" width={200} height={200} className="w-[60%] h-auto" />
+          <Image src="/logo-text.png" alt="DiG" width={200} height={100} className="w-[50%] h-auto object-contain" />
         </div>
       </div>
 
@@ -198,9 +198,11 @@ export default function Sidebar({ profile, theme }) {
             className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0"
             style={{ background: 'var(--grad)' }}
           >
-            {((theme?.company_name ?? profile?.display_name ?? 'U')[0]).toUpperCase()}
+            {((theme?.company_name ?? profile?.display_name ?? profile?.email ?? '?')[0]).toUpperCase()}
           </div>
-          <span className="text-gray-500 text-xs truncate">{theme?.company_name ?? profile?.display_name ?? ''}</span>
+          <span className="text-gray-500 text-xs truncate">
+            {theme?.company_name ?? profile?.display_name ?? profile?.email ?? ''}
+          </span>
         </div>
         <button
           onClick={handleLogout}
