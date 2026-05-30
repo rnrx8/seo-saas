@@ -26,11 +26,12 @@ function calcSimilarity(kw1, kw2) {
 
 function StatusBadge({ status }) {
   const map = {
-    queued:    { bg: '#fef9c3', color: '#854d0e', label: '待機中' },
-    running:   { bg: '#dbeafe', color: '#1e40af', label: '生成中' },
-    done:      { bg: '#dcfce7', color: '#166534', label: '完了' },
-    failed:    { bg: '#fee2e2', color: '#991b1b', label: '失敗' },
-    cancelled: { bg: '#f3f4f6', color: '#6b7280', label: '停止済み' },
+    queued:      { bg: '#fef9c3', color: '#854d0e', label: '待機中' },
+    running:     { bg: '#dbeafe', color: '#1e40af', label: '生成中' },
+    done:        { bg: '#dcfce7', color: '#166534', label: '完了' },
+    failed:      { bg: '#fee2e2', color: '#991b1b', label: '失敗' },
+    bug_fixing:  { bg: '#fde68a', color: '#92400e', label: '🔧 バグ修正中' },
+    cancelled:   { bg: '#f3f4f6', color: '#6b7280', label: '停止済み' },
   }
   const s = map[status] ?? { bg: '#f3f4f6', color: '#6b7280', label: status }
   return (
@@ -393,6 +394,9 @@ export default function NewDashboardPage() {
       } else if (data?.status === 'failed') {
         clearInterval(id); setPollingId(null); setPollingJobId(null); setGenerating(false); setCurrentStep(null); fetchJobs()
         setStatusMessage({ type: 'error', text: '生成に失敗しました' })
+      } else if (data?.status === 'bug_fixing') {
+        clearInterval(id); setPollingId(null); setPollingJobId(null); setGenerating(false); setCurrentStep(null); fetchJobs()
+        setStatusMessage({ type: 'warning', text: '🔧 バグを検出しました。自動修正中です。修正完了後に再生成されます。' })
       }
     }, 5000)
     setPollingId(id)
@@ -896,6 +900,7 @@ export default function NewDashboardPage() {
               <div className={`text-sm px-4 py-2.5 rounded-xl ${
                 statusMessage.type === 'error'   ? 'bg-red-50 text-red-700'
                 : statusMessage.type === 'success' ? 'bg-green-50 text-green-700'
+                : statusMessage.type === 'warning' ? 'bg-amber-50 text-amber-800'
                 : 'bg-blue-50 text-blue-700'
               }`}>
                 {statusMessage.text}
@@ -948,6 +953,7 @@ export default function NewDashboardPage() {
                 <option value="running">生成中</option>
                 <option value="done">完了</option>
                 <option value="failed">失敗</option>
+                <option value="bug_fixing">🔧 バグ修正中</option>
               </select>
               <button
                 onClick={fetchJobs}
