@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { getSupabase } from '@/lib/supabase'
+import { creditBarPct } from '@/app/_lib/billing'
 
 const NAV_ITEMS = [
   {
@@ -62,10 +63,8 @@ export default function Sidebar({ profile, theme }) {
   const pathname = usePathname()
   const [presetOpen, setPresetOpen] = useState(true)
 
-  const planLabel = { free: 'フリープラン', standard: 'スタンダード', pro: 'プロプラン' }[profile?.plan] ?? 'フリープラン'
   const creditsRemaining = profile?.credits_remaining ?? 0
-  const creditsTotal = profile?.credits_total ?? 5
-  const creditPct = creditsTotal > 0 ? Math.min(100, Math.round((creditsRemaining / creditsTotal) * 100)) : 0
+  const creditPct = creditBarPct(creditsRemaining, profile?.credits_total)
 
   async function handleLogout() {
     await getSupabase().auth.signOut()
@@ -176,11 +175,11 @@ export default function Sidebar({ profile, theme }) {
         })}
       </nav>
 
-      {/* Plan card */}
+      {/* Credit card */}
       <div className="mx-3 mb-3 rounded-xl p-4 border border-gray-100 bg-gray-50">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-gray-500 text-xs">{planLabel}</span>
-          <span className="text-gray-700 text-xs font-medium">{creditsRemaining}/{creditsTotal}</span>
+          <span className="text-gray-500 text-xs">残りクレジット</span>
+          <span className="text-gray-700 text-xs font-medium">{creditsRemaining}</span>
         </div>
         <div className="w-full h-1.5 rounded-full bg-gray-200 overflow-hidden">
           <div
@@ -188,7 +187,6 @@ export default function Sidebar({ profile, theme }) {
             style={{ width: `${creditPct}%`, background: 'var(--grad)' }}
           />
         </div>
-        <p className="text-gray-400 text-[10px] mt-2">残りクレジット</p>
       </div>
 
       {/* User / Logout */}

@@ -321,7 +321,7 @@ export default function NewDashboardPage() {
 
     const creditCost = ((deliveryType === 'outline_only' || deliveryType === 'research_only') ? 0.5 : 1) + (highAccuracyMode ? 0.2 : 0)
     if (profile?.plan !== 'pro' && profile?.credits_remaining < creditCost) {
-      setStatusMessage({ type: 'error', text: 'クレジットが不足しています。設定ページからプランをアップグレードしてください。' })
+      setStatusMessage({ type: 'error', text: 'クレジットが不足しています。設定ページからクレジットを追加してください。' })
       return
     }
 
@@ -945,7 +945,7 @@ export default function NewDashboardPage() {
             {!isPro && creditsRemaining <= 0 && !generating && (
               <p className="text-sm text-red-600">
                 クレジットが不足しています。
-                <Link href="/settings" className="underline ml-1">プランをアップグレード</Link>
+                <Link href="/settings" className="underline ml-1">クレジットを追加</Link>
               </p>
             )}
           </form>

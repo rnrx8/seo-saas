@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { getSupabase } from '@/lib/supabase'
 import MainLayout from '@/app/_components/v2/MainLayout'
+import { PLAN_UI_ENABLED, LOW_CREDIT_THRESHOLD, creditBarPct } from '@/app/_lib/billing'
 
 const PLANS = [
   {
@@ -242,50 +243,69 @@ export default function SettingsPage() {
           )}
         </section>
 
-        {/* Current plan summary */}
+        {/* Credit balance / plan summary */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">現在のプラン</h2>
-          <div className="grid grid-cols-3 gap-6">
-            <div>
-              <p className="text-xs text-gray-500 mb-1">プラン</p>
-              <p className="text-lg font-semibold text-gray-800">
-                {PLAN_LABELS[profile?.plan] ?? profile?.plan ?? '—'}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 mb-1">残りクレジット</p>
-              <p className={`text-lg font-semibold ${!isPro && profile?.credits_remaining <= 1 ? 'text-red-600' : 'text-gray-800'}`}>
-                {isPro ? '無制限' : `${profile?.credits_remaining ?? 0} 記事`}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 mb-1">累計使用数</p>
-              <p className="text-lg font-semibold text-gray-800">
-                {isPro ? '—' : `${usedCredits} 記事`}
-              </p>
-            </div>
-          </div>
-          {!isPro && (
-            <div className="mt-4">
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-500 rounded-full transition-all"
-                  style={{
-                    width: profile?.credits_total
-                      ? `${(profile.credits_remaining / profile.credits_total) * 100}%`
-                      : '0%',
-                  }}
-                />
+          {PLAN_UI_ENABLED ? (
+            <>
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">現在のプラン</h2>
+              <div className="grid grid-cols-3 gap-6">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">プラン</p>
+                  <p className="text-lg font-semibold text-gray-800">
+                    {PLAN_LABELS[profile?.plan] ?? profile?.plan ?? '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">残りクレジット</p>
+                  <p className={`text-lg font-semibold ${!isPro && profile?.credits_remaining <= 1 ? 'text-red-600' : 'text-gray-800'}`}>
+                    {isPro ? '無制限' : `${profile?.credits_remaining ?? 0} 記事`}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">累計使用数</p>
+                  <p className="text-lg font-semibold text-gray-800">
+                    {isPro ? '—' : `${usedCredits} 記事`}
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-gray-400 mt-1">
-                {profile?.credits_total ?? 0}記事中 {profile?.credits_remaining ?? 0}記事残り
+              {!isPro && (
+                <div className="mt-4">
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${creditBarPct(profile?.credits_remaining, profile?.credits_total)}%`, background: 'var(--grad)' }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {profile?.credits_total ?? 0}記事中 {profile?.credits_remaining ?? 0}記事残り
+                  </p>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">クレジット残高</h2>
+              <p className={`text-3xl font-bold ${(profile?.credits_remaining ?? 0) <= 1 ? 'text-red-600' : 'text-gray-800'}`}>
+                {profile?.credits_remaining ?? 0}
+                <span className="text-base font-medium text-gray-400 ml-1">クレジット</span>
               </p>
-            </div>
+              <div className="mt-4">
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${creditBarPct(profile?.credits_remaining, profile?.credits_total)}%`, background: 'var(--grad)' }}
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  残り{LOW_CREDIT_THRESHOLD}クレジットを切ると残量に応じてバーが減ります。
+                </p>
+              </div>
+            </>
           )}
         </section>
 
         {/* Credit add-on */}
-        {!isPro && (
+        {(!PLAN_UI_ENABLED || !isPro) && (
           <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -302,7 +322,8 @@ export default function SettingsPage() {
           </section>
         )}
 
-        {/* Plan list */}
+        {/* Plan list（月額制クライアント向け。従量課金モードでは非表示） */}
+        {PLAN_UI_ENABLED && (
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">プランを変更する</h2>
           <div className="flex flex-col gap-4">
@@ -344,6 +365,7 @@ export default function SettingsPage() {
             })}
           </div>
         </section>
+        )}
         {/* 生成デフォルト設定 */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-1">生成デフォルト設定</h2>
