@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "SEO記事生成",
-  description: "AIによるSEO記事自動生成サービス",
+  title: "DIG -Deep Intent Graph-",
+  description: "Dig into intent. Reach the unspoken. Surface what readers can't quite say.",
 };
 
 export default function RootLayout({ children }) {
