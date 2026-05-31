@@ -214,13 +214,13 @@ export default function PresetsPage() {
             <span className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : presets.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400 text-sm">
+          <div className="glass-panel rounded-xl p-12 text-center text-gray-400 text-sm">
             プリセットがありません。「＋ プリセットを追加」から作成してください。
           </div>
         ) : (
           <div className="flex flex-col gap-3">
             {presets.map(preset => (
-              <div key={preset.id} className="bg-white rounded-xl border border-gray-200 p-5">
+              <div key={preset.id} className="glass-panel rounded-xl p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-600 mb-2">{preset.name}</p>

@@ -211,13 +211,13 @@ export default function SourcesPage() {
             <span className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : sources.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400 text-sm">
+          <div className="glass-panel rounded-xl p-12 text-center text-gray-400 text-sm">
             登録済み資料がありません
           </div>
         ) : (
           <div className="grid gap-4">
             {sources.map(src => (
-              <div key={src.id} className="bg-white rounded-xl border border-gray-200 p-6">
+              <div key={src.id} className="glass-panel rounded-xl p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">

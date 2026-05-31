@@ -217,7 +217,7 @@ export default function SettingsPage() {
     <MainLayout profile={profile} theme={theme}>
       <div className="max-w-3xl mx-auto px-8 py-8 flex flex-col gap-8">
         {/* ユーザー名 */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="glass-panel rounded-xl shadow-sm p-6">
           <h2 className="text-lg font-semibold text-gray-600 mb-1">ユーザー名</h2>
           <p className="text-xs text-gray-500 mb-4">設定するとユーザー名でもログインできます。サイドバーに表示されます。</p>
           <div className="flex gap-3 items-center">
@@ -244,7 +244,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Credit balance / plan summary */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="glass-panel rounded-xl shadow-sm p-6">
           {PLAN_UI_ENABLED ? (
             <>
               <h2 className="text-lg font-semibold text-gray-600 mb-4">現在のプラン</h2>
@@ -306,7 +306,7 @@ export default function SettingsPage() {
 
         {/* Credit add-on */}
         {(!PLAN_UI_ENABLED || !isPro) && (
-          <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <section className="glass-panel rounded-xl shadow-sm p-6">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-600">クレジットを追加購入</h2>
@@ -324,7 +324,7 @@ export default function SettingsPage() {
 
         {/* Plan list（月額制クライアント向け。従量課金モードでは非表示） */}
         {PLAN_UI_ENABLED && (
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="glass-panel rounded-xl shadow-sm p-6">
           <h2 className="text-lg font-semibold text-gray-600 mb-4">プランを変更する</h2>
           <div className="flex flex-col gap-4">
             {PLANS.map((plan) => {
@@ -367,7 +367,7 @@ export default function SettingsPage() {
         </section>
         )}
         {/* 生成デフォルト設定 */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="glass-panel rounded-xl shadow-sm p-6">
           <h2 className="text-lg font-semibold text-gray-600 mb-1">生成デフォルト設定</h2>
           <p className="text-xs text-gray-500 mb-4">記事生成フォームを開いたときのデフォルト設定です。プリセット選択時はプリセット側の設定が優先されます。</p>
           <div className="flex items-start gap-3 border rounded-lg px-4 py-4 border-amber-200 bg-amber-50">
@@ -396,7 +396,7 @@ export default function SettingsPage() {
         </section>
 
         {/* WordPress連携 */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="glass-panel rounded-xl shadow-sm p-6">
           <h2 className="text-lg font-semibold text-gray-600 mb-1">WordPress連携</h2>
           <p className="text-xs text-gray-500 mb-4">設定するとWordPressへ記事を下書き投稿できます。</p>
           <div className="flex flex-col gap-3">
@@ -476,7 +476,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Data management */}
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="glass-panel rounded-xl shadow-sm p-6">
           <h2 className="text-lg font-semibold text-gray-600 mb-4">データ管理</h2>
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
