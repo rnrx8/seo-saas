@@ -34,9 +34,9 @@ export default function ServicesPage() {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
 
-  const fetchProfile = useCallback(async (userId) => {
+  const fetchProfile = useCallback(async (userId, email = '') => {
     const { data } = await getSupabase().from('user_profiles').select('*').eq('id', userId).single()
-    if (data) setProfile(data)
+    if (data) setProfile({ ...data, email })
   }, [])
 
   const fetchTheme = useCallback(async (userId) => {
@@ -58,7 +58,7 @@ export default function ServicesPage() {
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
       if (!session) { router.replace('/login'); return }
-      fetchProfile(session.user.id)
+      fetchProfile(session.user.id, session.user.email)
       fetchTheme(session.user.id)
       fetchServices()
       fetchPresets()

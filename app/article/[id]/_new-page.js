@@ -93,7 +93,7 @@ export default function NewArticlePage({ params }) {
       }
       fetchArtifacts()
       fetchJob()
-      fetchProfile(session.user.id)
+      fetchProfile(session.user.id, session.user.email)
       fetchTheme(session.user.id)
       fetchWpConfig(session.user.id)
     })
@@ -133,13 +133,13 @@ export default function NewArticlePage({ params }) {
     if (data) setJob(data)
   }
 
-  async function fetchProfile(userId) {
+  async function fetchProfile(userId, email = '') {
     const { data } = await getSupabase()
       .from('user_profiles')
       .select('*')
       .eq('id', userId)
       .single()
-    if (data) setProfile(data)
+    if (data) setProfile({ ...data, email })
   }
 
   async function fetchTheme(userId) {

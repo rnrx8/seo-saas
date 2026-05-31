@@ -66,13 +66,13 @@ export default function SettingsPage() {
   const [displayNameSaving, setDisplayNameSaving] = useState(false)
   const [displayNameMsg, setDisplayNameMsg] = useState('')
 
-  const fetchProfile = useCallback(async (userId) => {
+  const fetchProfile = useCallback(async (userId, email = '') => {
     const { data } = await getSupabase()
       .from('user_profiles')
       .select('*')
       .eq('id', userId)
       .single()
-    setProfile(data)
+    setProfile(data ? { ...data, email } : data)
     setWpUrl(data?.wp_url ?? '')
     setWpUsername(data?.wp_username ?? '')
     setWpAppPassword(data?.wp_app_password ?? '')
@@ -93,7 +93,7 @@ export default function SettingsPage() {
         router.replace('/login')
         return
       }
-      fetchProfile(session.user.id)
+      fetchProfile(session.user.id, session.user.email)
       fetchTheme(session.user.id)
     })
   }, [fetchProfile, fetchTheme])
