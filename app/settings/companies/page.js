@@ -42,9 +42,9 @@ export default function CompaniesPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const fetchProfile = useCallback(async (userId) => {
+  const fetchProfile = useCallback(async (userId, email = '') => {
     const { data } = await getSupabase().from('user_profiles').select('*').eq('id', userId).single()
-    if (data) setProfile(data)
+    if (data) setProfile({ ...data, email })
   }, [])
 
   const fetchTheme = useCallback(async (userId) => {
@@ -80,7 +80,7 @@ export default function CompaniesPage() {
   useEffect(() => {
     getSupabase().auth.getSession().then(({ data: { session } }) => {
       if (!session) { router.replace('/login'); return }
-      fetchProfile(session.user.id)
+      fetchProfile(session.user.id, session.user.email)
       fetchTheme(session.user.id)
       Promise.all([fetchCompanies(), fetchCategorySettings(), fetchPresets()])
     })
@@ -165,7 +165,7 @@ export default function CompaniesPage() {
 
         {/* カテゴリ別設定 */}
         {!loading && categories.length > 0 && (
-          <section className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <section className="glass-panel rounded-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100">
               <h2 className="text-base font-semibold text-gray-600">カテゴリ別設定</h2>
             </div>
@@ -227,13 +227,13 @@ export default function CompaniesPage() {
               <span className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : companies.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400 text-sm">
+            <div className="glass-panel rounded-xl p-12 text-center text-gray-400 text-sm">
               登録済み企業がありません
             </div>
           ) : (
             <div className="grid gap-4">
               {companies.map(company => (
-                <div key={company.id} className="bg-white rounded-xl border border-gray-200 p-6">
+                <div key={company.id} className="glass-panel rounded-xl p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
