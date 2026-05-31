@@ -50,7 +50,7 @@ export default function LoginPage() {
         <div className="flex flex-col items-center text-center">
           <Image src="/logo-circle.png" alt="DIG" width={210} height={210} className="drop-shadow-md" />
           <Image src="/logo-text.png" alt="DiG" width={144} height={72} className="object-contain mt-2" />
-          <div className="-mt-8">
+          <div className="-mt-[10px]">
             <p
               className="font-bold tracking-wide w-fit mx-auto"
               style={{ fontSize: '1.05rem', background: 'var(--grad)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
