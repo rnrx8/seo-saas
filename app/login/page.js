@@ -51,8 +51,13 @@ export default function LoginPage() {
           <Image src="/logo-circle.png" alt="DIG" width={210} height={210} className="drop-shadow-md" />
           <Image src="/logo-text.png" alt="DiG" width={144} height={72} className="object-contain" />
           <div>
-            <p className="text-gray-700 font-semibold text-lg tracking-wide">Understand intent. Unlock growth.</p>
-            <p className="text-gray-400 text-sm mt-1">AI-powered deep intent insights for<br />smarter decisions and better outcomes.</p>
+            <p
+              className="font-bold tracking-wide w-fit mx-auto"
+              style={{ fontSize: '1.05rem', background: 'var(--grad)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
+            >
+              Deep Intent Graph
+            </p>
+            <p className="text-gray-400 text-sm mt-1">Dig into intent. Reach the unspoken.<br />Surface what readers can&apos;t quite say.</p>
           </div>
         </div>
       </div>
@@ -63,7 +68,7 @@ export default function LoginPage() {
           {/* スパークアイコン */}
           <div className="text-center mb-6">
             <span className="text-2xl" style={{ background: 'var(--grad)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>✦</span>
-            <h1 className="text-2xl font-bold text-gray-600 mt-2">Welcome back</h1>
+            <h1 className="text-2xl font-bold text-gray-600 mt-2">おかえりなさい！</h1>
             <p className="text-gray-400 text-sm mt-1">Sign in to continue to DIG</p>
           </div>
 
