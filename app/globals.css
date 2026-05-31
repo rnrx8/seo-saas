@@ -40,19 +40,105 @@ body {
 
 /* リキッドガラスパネル — 左上から光が当たる想定 */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.05);
+  background: linear-gradient(
+    150deg,
+    rgba(255,255,255,0.22) 0%,
+    rgba(255,255,255,0.06) 28%,
+    rgba(255,255,255,0.04) 65%,
+    rgba(255,255,255,0.12) 100%
+  );
   /* -webkit- を先・標準を後に置く（古いSafari互換 + 標準採用の正順） */
   -webkit-backdrop-filter: blur(3.5px) saturate(90%) !important;
   backdrop-filter: blur(3.5px) saturate(90%) !important;
-  /* 非対称ボーダー：top/left明、right/bottom暗 */
-  border-top: 1px solid rgba(255, 255, 255, 0.88);
-  border-left: 1px solid rgba(255, 255, 255, 0.65);
-  border-right: 1px solid rgba(255, 255, 255, 0.22);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+  /* borderは薄い均一値にして、光の演出は全部 ::before に委ねる */
+  border: 1.5px solid rgba(255,255,255,0.18);
   box-shadow:
     /* 左上コーナーの内側グロウ */
     inset 1px 1px 40px rgba(255, 255, 255, 0.22),
     /* 外側の影 */
     0 8px 32px rgba(0, 0, 0, 0.10),
     0 2px 6px rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+/* きらっとしたスポット + フェードアウト縁ライン */
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  border-radius: inherit;
+  mix-blend-mode: overlay;
+  background:
+    /* ── フェードアウト縁ライン ── */
+    /* 上辺: 左端から約28%でシャープに消える */
+    radial-gradient(ellipse 28% 2.5px at 0% 0%,
+      rgba(255,255,255,1.0) 0%,
+      rgba(255,255,255,0.75) 25%,
+      rgba(255,255,255,0.05) 80%,
+      transparent 100%
+    ),
+    /* 左辺: 上端から約28%でシャープに消える */
+    radial-gradient(ellipse 2.5px 28% at 0% 0%,
+      rgba(255,255,255,0.95) 0%,
+      rgba(255,255,255,0.65) 25%,
+      rgba(255,255,255,0.04) 80%,
+      transparent 100%
+    ),
+
+    /* ── 縁ぎりぎりスポット ── */
+    /* 左上コーナー: 小さく鋭い核 */
+    radial-gradient(ellipse 14px 10px at 0.5% 0.5%,
+      rgba(255,255,255,1.0) 0%,
+      rgba(255,255,255,0.70) 35%,
+      transparent 75%
+    ),
+    /* 上辺 63%: 縁ぴったり横スポット */
+    radial-gradient(ellipse 36px 2px at 63% 0.1%,
+      rgba(255,255,255,0.95) 0%,
+      rgba(255,255,255,0.30) 50%,
+      transparent 100%
+    ),
+    /* 左辺 36%: 縁ぴったり縦スポット */
+    radial-gradient(ellipse 1px 26px at 0.1% 36%,
+      rgba(255,255,255,0.90) 0%,
+      rgba(255,255,255,0.25) 50%,
+      transparent 100%
+    ),
+    /* 右辺 11%: 意外な位置の細い縦スポット */
+    radial-gradient(ellipse 3px 26px at 99.9% 11%,
+      rgba(255,255,255,0.60) 0%,
+      transparent 80%
+    ),
+    /* 右下コーナー: 淡い対角反射 */
+    radial-gradient(ellipse 24px 18px at 99.2% 99.2%,
+      rgba(255,255,255,0.40) 0%,
+      rgba(255,255,255,0.07) 55%,
+      transparent 100%
+    ),
+    /* 下辺 57%: 細い横スポット */
+    radial-gradient(ellipse 22px 2px at 57% 99.9%,
+      rgba(255,255,255,0.28) 0%,
+      transparent 100%
+    ),
+    /* 右辺 51%: 点きらめき */
+    radial-gradient(ellipse 2px 8px at 99.9% 51%,
+      rgba(255,255,255,0.24) 0%,
+      transparent 100%
+    );
+}
+
+/* 内側2重縁（厚み感） */
+.glass-panel::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-top:    1px solid rgba(255,255,255,0.22);
+  border-left:   1px solid rgba(255,255,255,0.12);
+  border-right:  1px solid rgba(255,255,255,0.03);
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
 }
