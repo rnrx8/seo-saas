@@ -47,17 +47,17 @@ export default function LoginPage() {
     <div className="min-h-screen flex">
       {/* 左：ブランディング */}
       <div className="hidden lg:flex flex-col items-center justify-center flex-1 px-12">
-        <div className="flex flex-col items-center gap-6 text-center">
+        <div className="flex flex-col items-center text-center">
           <Image src="/logo-circle.png" alt="DIG" width={210} height={210} className="drop-shadow-md" />
-          <Image src="/logo-text.png" alt="DiG" width={144} height={72} className="object-contain" />
-          <div>
+          <Image src="/logo-text.png" alt="DiG" width={144} height={72} className="object-contain mt-2" />
+          <div className="-mt-8">
             <p
               className="font-bold tracking-wide w-fit mx-auto"
               style={{ fontSize: '1.05rem', background: 'var(--grad)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
             >
               Deep Intent Graph
             </p>
-            <p className="text-gray-400 text-sm mt-1">Dig into intent. Reach the unspoken.<br />Surface what readers can&apos;t quite say.</p>
+            <p className="text-gray-400 text-sm mt-3">Dig into intent. Reach the unspoken.<br />Surface what readers can&apos;t quite say.</p>
           </div>
         </div>
       </div>
