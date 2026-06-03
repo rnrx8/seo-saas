@@ -161,7 +161,7 @@ Markdown形式で自然にCTAを組み込んでください。
 
   try {
     const msg = await client.messages.create({
-      model: 'claude-opus-4-6',
+      model: 'claude-opus-4-8',
       max_tokens: 4096,
       messages: [{ role: 'user', content: userPrompt }],
     })
