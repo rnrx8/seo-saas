@@ -29,6 +29,7 @@ const NAV_ITEMS = [
   { key: 'ctas',      type: 'sublink', label: 'CTA管理',        href: '/settings/ctas',      enabled: true },
   { key: 'companies', type: 'sublink', label: '企業管理',       href: '/settings/companies', enabled: true },
   { key: 'sources',   type: 'sublink', label: '一次情報',       href: '/settings/sources',   enabled: true },
+  { key: 'learned',   type: 'sublink', label: '学習ルール',     href: '/settings/learned-rules', enabled: true },
   {
     key: 'account',
     type: 'link',
