@@ -237,9 +237,11 @@ export default function NewArticlePage({ params }) {
                     <ArticleView
                       markdown={articleText}
                       onOpenPanel={() => setShowPanel(true)}
-                      onApplyReorder={(newMd) => setArtifacts(prev => ({ ...prev, article: newMd }))}
+                      onUpdateArticle={(newMd) => setArtifacts(prev => ({ ...prev, article: newMd }))}
                       wpConfigured={wpConfigured}
                       jobId={id}
+                      intentText={artifacts['search_intent'] ?? ''}
+                      learningEnabled={profile?.learning_enabled !== false}
                     />
                   </div>
                 )}
@@ -358,15 +360,48 @@ function InfoRow({ label, value }) {
   )
 }
 
-function ArticleView({ markdown, onOpenPanel, onApplyReorder, wpConfigured, jobId }) {
+function ArticleView({ markdown, onOpenPanel, onUpdateArticle, wpConfigured, jobId, intentText, learningEnabled }) {
   const [view, setView] = useState('preview')
   const [copied, setCopied] = useState(false)
   const [showReorder, setShowReorder] = useState(false)
   const [wpPosting, setWpPosting] = useState(false)
   const [wpResult, setWpResult] = useState(null)
   const [wpError, setWpError] = useState('')
+  const [proofreading, setProofreading] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [savingProof, setSavingProof] = useState(false)
+  const [review, setReview] = useState(null) // { before, after } 保存後にレビューパネルを開く
 
   const html = marked(markdown)
+
+  function startProofread() {
+    setDraft(markdown)
+    setProofreading(true)
+  }
+
+  async function handleSaveProof() {
+    const before = markdown
+    const after = draft
+    if (after === before) { setProofreading(false); return }
+    setSavingProof(true)
+    const supabase = getSupabase()
+    await supabase.from('edit_history').insert({
+      job_id: jobId,
+      edit_type: 'proofread',
+      target_section: '',
+      before_text: before,
+      after_text: after,
+    })
+    await supabase
+      .from('artifacts')
+      .update({ content_text: after })
+      .eq('job_id', jobId)
+      .eq('step', 'article')
+    onUpdateArticle(after)
+    setSavingProof(false)
+    setProofreading(false)
+    setReview({ before, after })
+  }
 
   async function handleCopy() {
     const text = view === 'html' ? html : markdown
@@ -446,10 +481,17 @@ function ArticleView({ markdown, onOpenPanel, onApplyReorder, wpConfigured, jobI
           )}
           <button
             onClick={() => setShowReorder(true)}
-            disabled={!markdown}
+            disabled={!markdown || proofreading}
             className="border border-gray-200 bg-white px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:border-gray-300 transition-colors disabled:opacity-40"
           >
             並び替え
+          </button>
+          <button
+            onClick={startProofread}
+            disabled={!markdown || proofreading}
+            className="border border-blue-200 bg-blue-50 px-3 py-1.5 rounded-lg text-sm text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-40"
+          >
+            校正モード
           </button>
         </div>
       </div>
@@ -463,17 +505,47 @@ function ArticleView({ markdown, onOpenPanel, onApplyReorder, wpConfigured, jobI
         </p>
       )}
 
-      {view === 'preview' && (
+      {proofreading && (
+        <div>
+          <div className="flex items-center justify-between mb-3 bg-blue-50 border border-blue-100 rounded-lg px-4 py-2.5">
+            <p className="text-xs text-blue-700">
+              校正モード：本文を直接編集し、保存すると修正意図を学習します（文体・表現・レギュレーション）
+            </p>
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={() => setProofreading(false)}
+                className="border border-gray-300 bg-white text-gray-600 rounded-lg px-3 py-1.5 text-sm hover:bg-gray-50 transition-colors"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleSaveProof}
+                disabled={savingProof}
+                className="bg-blue-600 text-white rounded-lg px-4 py-1.5 text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                {savingProof ? '保存中...' : '保存して校正を確認'}
+              </button>
+            </div>
+          </div>
+          <textarea
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            spellCheck={false}
+            className="w-full h-[60vh] border border-gray-200 rounded-xl p-4 font-mono text-sm text-gray-700 leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+          />
+        </div>
+      )}
+      {!proofreading && view === 'preview' && (
         <article className="max-w-none">
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{markdown}</ReactMarkdown>
         </article>
       )}
-      {view === 'markdown' && (
+      {!proofreading && view === 'markdown' && (
         <pre className="bg-gray-50 border border-gray-100 p-4 rounded-xl overflow-auto whitespace-pre-wrap text-sm text-gray-600">
           {markdown}
         </pre>
       )}
-      {view === 'html' && (
+      {!proofreading && view === 'html' && (
         <pre className="bg-gray-50 border border-gray-100 p-4 rounded-xl overflow-auto whitespace-pre-wrap text-sm text-gray-600">
           {html}
         </pre>
@@ -482,10 +554,231 @@ function ArticleView({ markdown, onOpenPanel, onApplyReorder, wpConfigured, jobI
         <SectionReorderPanel
           markdown={markdown}
           onClose={() => setShowReorder(false)}
-          onApply={(newMd) => { onApplyReorder(newMd); setShowReorder(false) }}
+          onApply={(newMd) => { onUpdateArticle(newMd); setShowReorder(false) }}
+        />
+      )}
+      {review && (
+        <ProofreadReviewPanel
+          jobId={jobId}
+          beforeText={review.before}
+          afterText={review.after}
+          intentText={intentText}
+          learningEnabled={learningEnabled}
+          onUpdateArticle={onUpdateArticle}
+          onClose={() => setReview(null)}
         />
       )}
     </div>
+  )
+}
+
+// ── ProofreadReviewPanel ─────────────────────────────────────────────────────
+// 校正保存後に開く。修正意図の確認・全文への同種反映（任意）・学習ルールの保存。
+
+function ProofreadReviewPanel({ jobId, beforeText, afterText, intentText, learningEnabled, onUpdateArticle, onClose }) {
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState('')
+  const [rules, setRules] = useState([]) // [{ rule_text, before_example, after_example, checked }]
+  const [previewing, setPreviewing] = useState(false)
+  const [globalPreview, setGlobalPreview] = useState(null)
+  const [appliedGlobal, setAppliedGlobal] = useState(false)
+  const [savingRules, setSavingRules] = useState(false)
+  const [savedCount, setSavedCount] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoading(true); setErr('')
+      try {
+        const res = await fetch('/api/learn-edit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ before_text: beforeText, after_text: afterText }),
+        })
+        const data = await res.json()
+        if (cancelled) return
+        if (data.error) setErr(data.error)
+        else setRules((data.rules ?? []).map(r => ({ ...r, checked: true })))
+      } catch {
+        if (!cancelled) setErr('通信エラーが発生しました')
+      }
+      if (!cancelled) setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [beforeText, afterText])
+
+  async function handleGlobalPreview() {
+    setPreviewing(true); setErr('')
+    try {
+      const res = await fetch('/api/learn-edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ before_text: beforeText, after_text: afterText, intent_text: intentText, mode: 'apply_global' }),
+      })
+      const data = await res.json()
+      if (data.error) setErr(data.error)
+      else setGlobalPreview(data.full_article)
+    } catch {
+      setErr('通信エラーが発生しました')
+    }
+    setPreviewing(false)
+  }
+
+  async function handleApplyGlobal() {
+    if (!globalPreview) return
+    const supabase = getSupabase()
+    await supabase
+      .from('artifacts')
+      .update({ content_text: globalPreview })
+      .eq('job_id', jobId)
+      .eq('step', 'article')
+    onUpdateArticle(globalPreview)
+    setAppliedGlobal(true)
+  }
+
+  function updateRule(i, value) {
+    setRules(prev => prev.map((r, idx) => idx === i ? { ...r, rule_text: value } : r))
+  }
+  function toggleRule(i) {
+    setRules(prev => prev.map((r, idx) => idx === i ? { ...r, checked: !r.checked } : r))
+  }
+
+  async function handleLearn() {
+    const checked = rules.filter(r => r.checked && r.rule_text.trim())
+    if (!checked.length) return
+    setSavingRules(true)
+    const supabase = getSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+    const { error } = await supabase.from('learned_style_rules').insert(
+      checked.map(r => ({
+        tenant_id: user.id,
+        rule_text: r.rule_text.trim(),
+        before_example: r.before_example ?? null,
+        after_example: r.after_example ?? null,
+        source_job_id: jobId,
+        status: 'active',
+      }))
+    )
+    setSavingRules(false)
+    if (error) setErr(error.message)
+    else setSavedCount(checked.length)
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
+      <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-50 flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
+          <h2 className="font-semibold text-gray-600">校正から学習</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-6">
+          {err && <p className="text-sm text-red-600 bg-red-50 rounded p-3">{err}</p>}
+
+          {/* 全文への同種反映（任意） */}
+          <section>
+            <p className="text-sm font-medium text-gray-700 mb-2">① 全文に同種の修正を反映（任意）</p>
+            <p className="text-xs text-gray-500 mb-3">
+              今回の修正と同じ文体・表現の調整を、記事全文に一貫して適用します。
+            </p>
+            {appliedGlobal ? (
+              <p className="text-xs text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2">
+                全文に反映しました。
+              </p>
+            ) : globalPreview ? (
+              <div>
+                <pre className="bg-gray-50 border border-gray-100 rounded p-3 text-xs text-gray-700 whitespace-pre-wrap overflow-auto max-h-48 mb-2">{globalPreview}</pre>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setGlobalPreview(null)}
+                    className="flex-1 border border-gray-300 text-gray-600 rounded-lg py-2 text-sm hover:bg-gray-50 transition-colors"
+                  >
+                    取り消し
+                  </button>
+                  <button
+                    onClick={handleApplyGlobal}
+                    className="flex-1 bg-green-600 text-white rounded-lg py-2 text-sm hover:bg-green-700 transition-colors"
+                  >
+                    全文に適用
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={handleGlobalPreview}
+                disabled={previewing}
+                className="w-full border border-blue-200 bg-blue-50 text-blue-700 rounded-lg py-2 text-sm hover:bg-blue-100 transition-colors disabled:opacity-50"
+              >
+                {previewing ? '生成中...' : '全文反映プレビューを作成'}
+              </button>
+            )}
+          </section>
+
+          {/* 学習 */}
+          <section className="border-t border-gray-100 pt-5">
+            <p className="text-sm font-medium text-gray-700 mb-2">② 修正意図を学習</p>
+            {!learningEnabled ? (
+              <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-3">
+                学習機能はオフになっています。設定 → 学習ルール で有効化できます。
+              </p>
+            ) : loading ? (
+              <div className="flex justify-center py-8">
+                <span className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : savedCount !== null ? (
+              <p className="text-xs text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-3">
+                {savedCount}件のルールを学習しました。次回以降の生成に反映されます。
+              </p>
+            ) : rules.length === 0 ? (
+              <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-3">
+                再利用できる文体ルールは見つかりませんでした。
+              </p>
+            ) : (
+              <div>
+                <p className="text-xs text-gray-500 mb-3">
+                  学習する内容を確認・編集してください。チェックしたルールだけが保存されます。
+                </p>
+                <div className="flex flex-col gap-3 mb-4">
+                  {rules.map((r, i) => (
+                    <div key={i} className="border border-gray-200 rounded-lg p-3">
+                      <label className="flex items-start gap-2 cursor-pointer mb-2">
+                        <input
+                          type="checkbox"
+                          checked={r.checked}
+                          onChange={() => toggleRule(i)}
+                          className="mt-1 accent-blue-600"
+                        />
+                        <span className="text-xs text-gray-500">学習する</span>
+                      </label>
+                      <textarea
+                        value={r.rule_text}
+                        onChange={e => updateRule(i, e.target.value)}
+                        rows={2}
+                        className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      />
+                      {(r.before_example || r.after_example) && (
+                        <p className="text-[11px] text-gray-400 mt-1.5 leading-relaxed">
+                          {r.before_example && <>例：<span className="line-through">{r.before_example}</span> → </>}
+                          {r.after_example}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={handleLearn}
+                  disabled={savingRules || !rules.some(r => r.checked && r.rule_text.trim())}
+                  className="w-full bg-blue-600 text-white rounded-lg py-2 text-sm hover:bg-blue-700 transition-colors disabled:opacity-40"
+                >
+                  {savingRules ? '保存中...' : 'チェックしたルールを学習'}
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
+    </>
   )
 }
 
