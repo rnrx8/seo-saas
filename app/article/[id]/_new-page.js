@@ -943,12 +943,14 @@ function SerpView({ content, queryAttrs, wordCountSetting }) {
 
   let organicResults = null
   let headingsMap = {}
+  let source = null
   try {
     const parsed = JSON.parse(content)
     if (Array.isArray(parsed)) {
       organicResults = parsed
     } else {
       organicResults = parsed.organic_results ?? null
+      source = parsed.source ?? null
       for (const h of (parsed.competitor_headings ?? [])) {
         if (h?.url) headingsMap[h.url] = h
       }
@@ -962,6 +964,13 @@ function SerpView({ content, queryAttrs, wordCountSetting }) {
   return (
     <div className="flex flex-col gap-4">
       <QueryAttrsCard content={queryAttrs} wordCountSetting={wordCountSetting} />
+      {source && (
+        <div className="rounded-lg bg-gray-50 px-4 py-3 text-xs text-gray-600">
+          <p>取得元：{({ serper: 'Serper', serpapi: 'SerpAPI', browser_verified: 'Google検索画面（確認済み）' })[source.provider] ?? source.provider}</p>
+          {source.fetched_at && !Number.isNaN(Date.parse(source.fetched_at)) && <p className="mt-1">取得日時：{new Date(source.fetched_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}（日本時間）</p>}
+          <p className="mt-1">取得時点の自然検索結果です。現在の順位は地域や時刻によって変わります。</p>
+        </div>
+      )}
       {organicResults.map((item, i) => {
         const url = item.link ?? item.url ?? ''
         const heading = headingsMap[url]
@@ -977,7 +986,7 @@ function SerpView({ content, queryAttrs, wordCountSetting }) {
                 {heading && <HeadingsList headings={heading.headings} fetchStatus={heading.fetch_status} />}
               </div>
               <div className="flex flex-col items-end gap-1 shrink-0">
-                <span className="text-xs text-gray-400">#{i + 1}</span>
+                <span className="text-xs text-gray-400">#{item.position ?? i + 1}</span>
                 {heading?.word_count > 0 && (
                   <span className="text-xs text-gray-400">{heading.word_count.toLocaleString()}字</span>
                 )}
