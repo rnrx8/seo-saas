@@ -1,14 +1,12 @@
 'use client'
 
 import SidebarDark from './SidebarDark'
+import ResponsiveLayout from './ResponsiveLayout'
 
 export default function MainLayoutDark({ children, profile, theme }) {
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#eef2f8' }}>
-      <SidebarDark profile={profile} theme={theme} />
-      <main className="flex-1 overflow-y-auto">
-        {children}
-      </main>
-    </div>
+    <ResponsiveLayout sidebar={<SidebarDark profile={profile} theme={theme} />} dark>
+      {children}
+    </ResponsiveLayout>
   )
 }

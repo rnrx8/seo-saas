@@ -318,7 +318,7 @@ export default function DashboardPage() {
 
   return (
     <MainLayoutDark profile={profile} theme={theme}>
-      <main className="max-w-4xl mx-auto px-8 py-8 flex flex-col gap-8">
+      <main className="max-w-4xl mx-auto px-3 py-5 sm:px-8 sm:py-8 flex flex-col gap-8">
         {/* Generate form */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">記事を生成する</h2>
@@ -365,7 +365,7 @@ export default function DashboardPage() {
               {bulkMode && <span className="text-xs text-gray-400">1行1キーワード</span>}
             </div>
             {/* キーワード入力 */}
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               {bulkMode ? (
                 <textarea
                   value={bulkKeywords}
@@ -373,7 +373,7 @@ export default function DashboardPage() {
                   placeholder={"保険 30代 おすすめ\nクレジットカード 比較\n転職 エージェント おすすめ"}
                   disabled={generating}
                   rows={4}
-                  className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 resize-none"
+                  className="min-w-0 flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 resize-none"
                 />
               ) : (
                 <input
@@ -382,7 +382,7 @@ export default function DashboardPage() {
                   onChange={(e) => setKeyword(e.target.value)}
                   placeholder="メインキーワードを入力..."
                   disabled={generating}
-                  className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
+                  className="min-w-0 flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
                 />
               )}
               <button
@@ -602,7 +602,8 @@ export default function DashboardPage() {
           {jobs.length === 0 ? (
             <p className="text-gray-400 text-sm text-center py-12">まだ記事がありません</p>
           ) : (
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
               <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
                 <tr>
                   <th className="px-6 py-3 text-left">キーワード</th>
@@ -637,6 +638,7 @@ export default function DashboardPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </section>
       </main>

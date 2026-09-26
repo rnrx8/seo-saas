@@ -460,19 +460,19 @@ export default function NewDashboardPage() {
 
   return (
     <MainLayout profile={profile} theme={theme}>
-      <div className="px-8 py-8">
+      <div className="px-3 py-5 sm:px-8 sm:py-8">
         {/* Generate form card */}
         <div className="glass-panel rounded-2xl shadow-sm p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: 'var(--grad)' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5} className="w-3.5 h-3.5">
                   <path d="M12 5v14M5 12h14" strokeLinecap="round" />
                 </svg>
               </div>
-              <h2 className="font-semibold text-gray-600">新規記事生成</h2>
+              <h2 className="shrink-0 whitespace-nowrap font-semibold text-gray-600">新規記事生成</h2>
             </div>
-            <img src="/mascot.png" alt="" className="h-14 object-contain select-none pointer-events-none" />
+            <img src="/mascot.png" alt="" className="h-10 w-24 min-w-0 object-contain select-none pointer-events-none sm:h-14 sm:w-auto" />
           </div>
 
           <form onSubmit={bulkMode ? handleBulkGenerate : handleGenerate} className="flex flex-col gap-3">
@@ -526,7 +526,7 @@ export default function NewDashboardPage() {
             </div>
 
             {/* キーワード入力 */}
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               {bulkMode ? (
                 <textarea
                   value={bulkKeywords}
@@ -534,7 +534,7 @@ export default function NewDashboardPage() {
                   placeholder={"保険 30代 おすすめ\nクレジットカード 比較\n転職 エージェント おすすめ"}
                   disabled={generating}
                   rows={4}
-                  className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50 resize-none"
+                  className="min-w-0 flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50 resize-none"
                 />
               ) : (
                 <input
@@ -543,7 +543,7 @@ export default function NewDashboardPage() {
                   onChange={e => setKeyword(e.target.value)}
                   placeholder="メインキーワードを入力（例：転職エージェント おすすめ 30代）"
                   disabled={generating}
-                  className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50"
+                  className="min-w-0 flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 bg-gray-50"
                 />
               )}
               <button
@@ -947,9 +947,9 @@ export default function NewDashboardPage() {
 
         {/* Jobs table */}
         <div className="glass-panel rounded-2xl shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4">
+          <div className="px-3 sm:px-6 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
             <h2 className="font-semibold text-gray-600">生成済み記事一覧</h2>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <input
                 type="text"
                 value={searchFilter}
@@ -982,7 +982,8 @@ export default function NewDashboardPage() {
             </div>
           </div>
 
-          <table className="w-full">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-gray-100">
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">キーワード</th>
@@ -1030,6 +1031,7 @@ export default function NewDashboardPage() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </MainLayout>

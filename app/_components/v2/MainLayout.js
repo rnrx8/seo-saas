@@ -1,14 +1,12 @@
 'use client'
 
 import Sidebar from './Sidebar'
+import ResponsiveLayout from './ResponsiveLayout'
 
 export default function MainLayout({ children, profile, theme }) {
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar profile={profile} theme={theme} />
-      <main className="flex-1 overflow-y-auto">
-        {children}
-      </main>
-    </div>
+    <ResponsiveLayout sidebar={<Sidebar profile={profile} theme={theme} />}>
+      {children}
+    </ResponsiveLayout>
   )
 }

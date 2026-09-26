@@ -81,7 +81,7 @@ export default function Sidebar({ profile, theme }) {
   }
 
   return (
-    <aside className="flex flex-col h-screen w-56 flex-shrink-0 glass-panel border-r border-white/40">
+    <aside className="flex flex-col h-dvh w-56 flex-shrink-0 glass-panel border-r border-white/40">
       {/* Logo */}
       <div className="px-5 py-5 border-b border-gray-100">
         <div className="flex flex-col items-center gap-2">

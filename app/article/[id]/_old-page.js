@@ -52,10 +52,11 @@ const MD_COMPONENTS = {
   ul:     ({ children }) => <ul className="list-disc list-inside mb-3 space-y-1">{children}</ul>,
   ol:     ({ children }) => <ol className="list-decimal list-inside mb-3 space-y-1">{children}</ol>,
   li:     ({ children }) => <li className="ml-4">{children}</li>,
-  table:  ({ children }) => <table className="w-full border-collapse mb-4">{children}</table>,
+  table:  ({ children }) => <div className="max-w-full overflow-x-auto mb-4"><table className="w-full border-collapse">{children}</table></div>,
   th:     ({ children }) => <th className="border border-gray-300 bg-gray-100 px-3 py-2 text-left text-sm font-semibold">{children}</th>,
   td:     ({ children }) => <td className="border border-gray-300 px-3 py-2 text-sm">{children}</td>,
   strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+  pre:    ({ children }) => <pre className="max-w-full overflow-x-auto mb-4">{children}</pre>,
   code:   ({ children }) => <code className="bg-gray-100 px-1 rounded text-sm">{children}</code>,
 }
 
@@ -145,7 +146,7 @@ export default function ArticlePage({ params }) {
 
   return (
     <MainLayoutDark profile={profile} theme={theme}>
-      <main className="max-w-4xl mx-auto px-8 py-8">
+      <main className="max-w-4xl mx-auto px-0 py-3 lg:px-8 lg:py-8">
         {error ? (
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-6 text-sm">
             {error}
@@ -157,12 +158,12 @@ export default function ArticlePage({ params }) {
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             {/* Tabs */}
-            <div className="flex border-b border-gray-200">
+            <div className="flex overflow-x-auto border-b border-gray-200">
               {TABS.map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`px-6 py-3 text-sm font-medium transition-colors ${
+                  className={`shrink-0 whitespace-nowrap px-4 sm:px-6 py-3 text-sm font-medium transition-colors ${
                     activeTab === tab.key
                       ? 'border-b-2 border-blue-600 text-blue-600'
                       : 'text-gray-500 hover:text-gray-700'
@@ -174,7 +175,7 @@ export default function ArticlePage({ params }) {
             </div>
 
             {/* Tab content */}
-            <div className="p-8">
+            <div className="px-3 py-4 lg:p-8 [overflow-wrap:anywhere]">
               {activeTab === 'article' && (
                 <div>
                   {titlePatterns && (
@@ -301,7 +302,7 @@ function ArticleView({ markdown, onOpenPanel, wpConfigured, jobId, onApplyReorde
   return (
     <div>
       {/* ビュー切り替え + コピーボタン */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex gap-1">
           {VIEWS.map((v) => (
             <button
@@ -317,7 +318,7 @@ function ArticleView({ markdown, onOpenPanel, wpConfigured, jobId, onApplyReorde
             </button>
           ))}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={handleCopy}
             className="rounded border border-gray-300 bg-white px-3 py-1 text-sm text-gray-600 hover:border-gray-400 transition-colors"
@@ -504,7 +505,7 @@ function QueryAttrsCard({ content, wordCountSetting }) {
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-6">
       <h3 className="text-sm font-semibold text-blue-800 mb-3">クエリ属性分析</h3>
-      <div className="grid grid-cols-2 gap-4 text-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
         <div>
           <p className="text-xs text-gray-500 mb-1">性別傾向</p>
           <p className="font-medium text-gray-800">{attrs.gender_tendency ?? '—'}</p>

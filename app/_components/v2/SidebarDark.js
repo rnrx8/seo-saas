@@ -95,7 +95,7 @@ export default function Sidebar({ profile, theme }) {
 
   return (
     <aside
-      className="flex flex-col h-screen w-56 flex-shrink-0"
+      className="flex flex-col h-dvh w-56 flex-shrink-0"
       style={{ backgroundColor: sidebarBg }}
     >
       {/* Logo */}

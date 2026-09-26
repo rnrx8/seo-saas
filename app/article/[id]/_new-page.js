@@ -50,10 +50,11 @@ const MD_COMPONENTS = {
   ul:     ({ children }) => <ul className="list-disc list-inside mb-3 space-y-1">{children}</ul>,
   ol:     ({ children }) => <ol className="list-decimal list-inside mb-3 space-y-1">{children}</ol>,
   li:     ({ children }) => <li className="ml-4">{children}</li>,
-  table:  ({ children }) => <table className="w-full border-collapse mb-4">{children}</table>,
+  table:  ({ children }) => <div className="max-w-full overflow-x-auto mb-4"><table className="w-full border-collapse">{children}</table></div>,
   th:     ({ children }) => <th className="border border-gray-300 bg-gray-100 px-3 py-2 text-left text-sm font-semibold">{children}</th>,
   td:     ({ children }) => <td className="border border-gray-300 px-3 py-2 text-sm">{children}</td>,
   strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+  pre:    ({ children }) => <pre className="max-w-full overflow-x-auto mb-4">{children}</pre>,
   code:   ({ children }) => <code className="bg-gray-100 px-1 rounded text-sm">{children}</code>,
 }
 
@@ -81,6 +82,7 @@ export default function NewArticlePage({ params }) {
   const [activeTab, setActiveTab] = useState('article')
   const [error, setError] = useState('')
   const [showPanel, setShowPanel] = useState(false)
+  const [articleInfoOpen, setArticleInfoOpen] = useState(false)
   const [profile, setProfile] = useState(null)
   const [theme, setTheme] = useState(null)
   const [wpConfigured, setWpConfigured] = useState(false)
@@ -172,16 +174,17 @@ export default function NewArticlePage({ params }) {
 
   return (
     <MainLayout profile={profile} theme={theme}>
-      <div className="flex h-full">
+      <div className="flex h-full min-w-0 flex-col lg:flex-row">
         {/* Main content area */}
-        <div className="flex-1 min-w-0 overflow-y-auto">
+        <div className="flex-1 min-h-0 min-w-0 overflow-y-auto">
           {/* Page header */}
-          <div className="px-8 py-6 border-b border-gray-100 bg-white sticky top-0 z-10">
+          <div className="px-3 py-4 sm:px-8 sm:py-6 border-b border-gray-100 bg-white sticky top-0 z-10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => router.push('/dashboard')}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label="ダッシュボードに戻る"
+                  className="shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
                     <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
@@ -190,7 +193,7 @@ export default function NewArticlePage({ params }) {
                 <div>
                   <h1 className="text-lg font-bold text-gray-900">記事詳細</h1>
                   {job?.main_keyword && (
-                    <p className="text-xs text-gray-400 mt-0.5">{job.main_keyword}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 [overflow-wrap:anywhere]">{job.main_keyword}</p>
                   )}
                 </div>
               </div>
@@ -198,7 +201,7 @@ export default function NewArticlePage({ params }) {
           </div>
 
           {/* Tabs */}
-          <div className="bg-white border-b border-gray-100 px-8">
+          <div className="bg-white border-b border-gray-100 px-3 sm:px-8 overflow-x-auto">
             <div className="flex gap-0">
               {TABS.map((tab) => (
                 <button
@@ -217,7 +220,7 @@ export default function NewArticlePage({ params }) {
           </div>
 
           {/* Tab content */}
-          <div className="px-8 py-6">
+          <div className="px-3 py-5 sm:px-8 sm:py-6 [overflow-wrap:anywhere]">
             {error ? (
               <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-6 text-sm">{error}</div>
             ) : isLoading ? (
@@ -289,9 +292,24 @@ export default function NewArticlePage({ params }) {
         </div>
 
         {/* Right sidebar: 記事情報 */}
-        <aside className="w-72 flex-shrink-0 border-l border-gray-100 bg-white overflow-y-auto">
-          <div className="p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">記事情報</h3>
+        <aside className="order-first max-h-[50dvh] w-full shrink-0 overflow-y-auto border-b border-gray-100 bg-white lg:order-last lg:max-h-none lg:w-72 lg:border-b-0 lg:border-l">
+          <button
+            type="button"
+            onClick={() => setArticleInfoOpen(open => !open)}
+            aria-expanded={articleInfoOpen}
+            aria-controls="article-information"
+            className="flex min-h-11 w-full items-center justify-between px-3 py-2 text-sm font-semibold text-gray-700 lg:hidden"
+          >
+            記事情報
+            <span className="flex items-center gap-2 text-xs font-normal text-gray-500">
+              {articleInfoOpen ? '閉じる' : '開く'}
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`h-4 w-4 transition-transform ${articleInfoOpen ? 'rotate-180' : ''}`}>
+                <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          </button>
+          <div id="article-information" className={`${articleInfoOpen ? 'block' : 'hidden'} p-3 lg:block lg:p-5 [overflow-wrap:anywhere]`}>
+            <h3 className="hidden text-sm font-semibold text-gray-700 mb-4 lg:block">記事情報</h3>
             <div className="flex flex-col gap-4">
               {/* Stats */}
               <div className="grid grid-cols-2 gap-3">
@@ -432,7 +450,7 @@ function ArticleView({ markdown, onOpenPanel, onUpdateArticle, wpConfigured, job
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
           {VIEWS.map((v) => (
             <button
@@ -448,7 +466,7 @@ function ArticleView({ markdown, onOpenPanel, onUpdateArticle, wpConfigured, job
             </button>
           ))}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={handleCopy}
             className="flex items-center gap-1.5 border border-gray-200 bg-white px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:border-gray-300 transition-colors"
@@ -507,7 +525,7 @@ function ArticleView({ markdown, onOpenPanel, onUpdateArticle, wpConfigured, job
 
       {proofreading && (
         <div>
-          <div className="flex items-center justify-between mb-3 bg-blue-50 border border-blue-100 rounded-lg px-4 py-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3 bg-blue-50 border border-blue-100 rounded-lg px-4 py-2.5">
             <p className="text-xs text-blue-700">
               校正モード：本文を直接編集し、保存すると修正意図を学習します（文体・表現・レギュレーション）
             </p>
@@ -849,7 +867,7 @@ function QueryAttrsCard({ content, wordCountSetting }) {
   return (
     <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-6">
       <h3 className="text-sm font-semibold text-blue-800 mb-3">クエリ属性分析</h3>
-      <div className="grid grid-cols-2 gap-4 text-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
         {attrs && (
           <>
             <div>
