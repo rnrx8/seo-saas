@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { createBrowserJob, startBrowserGeneration } from '@/app/_lib/browser-serp'
 import { getSupabase } from '@/lib/supabase'
 import MainLayout from '@/app/_components/v2/MainLayout'
 
@@ -299,14 +300,13 @@ export default function NewDashboardPage() {
     let successCount = 0
     for (let i = 0; i < keywords.length; i++) {
       setStatusMessage({ type: 'info', text: `登録中… (${i + 1}/${keywords.length}) ${keywords[i]}` })
-      const { data: job, error } = await supabase
-        .from('jobs')
-        .insert({ ...resolveJobParams(keywords[i]), tenant_id: user.id })
-        .select().single()
+      const { data: job, error } = await createBrowserJob(supabase, { ...resolveJobParams(keywords[i]), tenant_id: user.id })
       if (!error && job) {
-        fetch('/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ job_id: job.id, keyword: job.main_keyword, word_count_setting: job.word_count_setting }) }).catch(() => {})
-        successCount++
+        try { await startBrowserGeneration(job); successCount++ } catch (error) {
+          setGenerating(false); await fetchJobs(); setStatusMessage({ type: 'error', text: `${successCount}件開始済み。${error.message}` }); return
+        }
       }
+      if (error) { setGenerating(false); await fetchJobs(); setStatusMessage({ type: 'error', text: `${successCount}件開始済み。${error.message}` }); return }
       if (i < keywords.length - 1) await new Promise(r => setTimeout(r, 300))
     }
     await fetchJobs()
@@ -333,15 +333,12 @@ export default function NewDashboardPage() {
     }
 
     setGenerating(true)
-    setStatusMessage(null)
+    setStatusMessage({ type: 'info', text: 'Google検索画面から競合情報を取得中です…' })
 
     const supabase = getSupabase()
     const { data: { user } } = await supabase.auth.getUser()
 
-    const { data: job, error: insertError } = await supabase
-      .from('jobs')
-      .insert({ ...resolveJobParams(keyword.trim()), tenant_id: user.id })
-      .select().single()
+    const { data: job, error: insertError } = await createBrowserJob(supabase, { ...resolveJobParams(keyword.trim()), tenant_id: user.id })
 
     if (insertError || !job) {
       setStatusMessage({ type: 'error', text: 'ジョブの作成に失敗しました: ' + (insertError?.message ?? '') })
@@ -353,13 +350,11 @@ export default function NewDashboardPage() {
     setKeyword('')
 
     // fire-and-forget: Railway が cold start でタイムアウトしても job は DB に残るので polling で追跡できる
-    const callGenerate = () => fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ job_id: job.id, keyword: job.main_keyword, word_count_setting: job.word_count_setting }),
-    }).catch(() => {})
+    const callGenerate = () => startBrowserGeneration(job).catch(error => {
+      setStatusMessage({ type: 'error', text: error.message })
+    })
 
-    callGenerate()
+    await callGenerate()
 
     // queued のまま2分経過したら /api/generate を再送信（Railway cold start 対策、最大3回）
     let queuedSince = Date.now()
@@ -404,16 +399,12 @@ export default function NewDashboardPage() {
   }
 
   async function handleRetry(job) {
-    await getSupabase().from('jobs').update({ status: 'queued', error_message: null, current_step: null }).eq('id', job.id)
-    await fetchJobs()
-
-    fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ job_id: job.id, keyword: job.main_keyword }),
-    }).catch(() => {})
-
-    setStatusMessage({ type: 'info', text: `「${job.main_keyword}」を再実行しました` })
+    setStatusMessage({ type: 'info', text: 'Google検索画面から競合情報を取得中です…' })
+    try {
+      await startBrowserGeneration(job, { refresh: true })
+      await fetchJobs()
+      setStatusMessage({ type: 'info', text: `「${job.main_keyword}」を再実行しました` })
+    } catch (error) { setStatusMessage({ type: 'error', text: error.message }); return }
 
     // ジョブリストを2分間ポーリングして表示を更新
     let count = 0
@@ -483,6 +474,7 @@ export default function NewDashboardPage() {
           </div>
 
           <form onSubmit={bulkMode ? handleBulkGenerate : handleGenerate} className="flex flex-col gap-3">
+            <p className="text-xs text-gray-600">生成時にChromeのGoogle検索画面から競合を取得します。<Link href="/settings/search" className="text-blue-700 underline ml-1">検索結果の取得設定</Link></p>
 
             {/* 納品物選択 */}
             <div className="flex gap-2">
@@ -559,7 +551,7 @@ export default function NewDashboardPage() {
               >
                 {generating ? (bulkMode ? '登録中...' : '生成中...') : (bulkMode ? '一括登録' : '記事生成')}
               </button>
-              {generating && !bulkMode && (
+              {generating && !bulkMode && pollingJobId && (
                 <button
                   type="button"
                   onClick={handleStop}

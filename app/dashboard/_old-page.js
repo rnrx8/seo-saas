@@ -1,5 +1,7 @@
 'use client'
 
+import { createBrowserJob, startBrowserGeneration } from '@/app/_lib/browser-serp'
+
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -120,7 +122,7 @@ export default function DashboardPage() {
     for (let i = 0; i < keywords.length; i++) {
       const kw = keywords[i]
       setStatusMessage({ type: 'info', text: `登録中… (${i + 1}/${keywords.length}) ${kw}` })
-      const { data: job, error } = await supabase.from('jobs').insert({
+      const { data: job, error } = await createBrowserJob(supabase, {
         main_keyword: kw,
         status: 'queued',
         category: category.trim() || null,
@@ -133,16 +135,13 @@ export default function DashboardPage() {
         custom_prompt: customPrompt.trim() || null,
         must_reference_urls: mustReferenceUrls.trim() || null,
         never_reference_urls: neverReferenceUrls.trim() || null,
-      }).select().single()
+      })
 
       if (!error && job) {
-        fetch('/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ job_id: job.id, keyword: job.main_keyword }),
-        }).catch(() => {})
+        try { await startBrowserGeneration(job) } catch (error) { setGenerating(false); await fetchJobs(); setStatusMessage({ type: 'error', text: error.message }); return }
         successCount++
       }
+      if (error) { setGenerating(false); await fetchJobs(); setStatusMessage({ type: 'error', text: error.message }); return }
       if (i < keywords.length - 1) await new Promise(r => setTimeout(r, 300))
     }
 
@@ -179,9 +178,7 @@ export default function DashboardPage() {
       : (articlePurpose || null)
     const resolvedWordCount = wordCountValue || null
 
-    const { data: job, error: insertError } = await supabase
-      .from('jobs')
-      .insert({
+    const { data: job, error: insertError } = await createBrowserJob(supabase, {
         main_keyword: keyword.trim(),
         status: 'queued',
         category: category.trim() || null,
@@ -195,8 +192,6 @@ export default function DashboardPage() {
         must_reference_urls: mustReferenceUrls.trim() || null,
         never_reference_urls: neverReferenceUrls.trim() || null,
       })
-      .select()
-      .single()
 
     if (insertError || !job) {
       setStatusMessage({ type: 'error', text: 'ジョブの作成に失敗しました: ' + (insertError?.message ?? '') })
@@ -219,13 +214,9 @@ export default function DashboardPage() {
     setNeverReferenceUrls('')
 
     // fire-and-forget: Railway が cold start でタイムアウトしても job は DB に残るので polling で追跡できる
-    const callGenerate = () => fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ job_id: job.id, keyword: job.main_keyword }),
-    }).catch(() => {})
+    const callGenerate = () => startBrowserGeneration(job).catch(error => setStatusMessage({ type: 'error', text: error.message }))
 
-    callGenerate()
+    await callGenerate()
 
     // queued のまま2分経過したら /api/generate を再送信（Railway cold start 対策、最大3回）
     let queuedSince = Date.now()
@@ -332,6 +323,7 @@ export default function DashboardPage() {
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">記事を生成する</h2>
           <form onSubmit={bulkMode ? handleBulkGenerate : handleGenerate} className="flex flex-col gap-3">
+            <p className="text-xs text-gray-600">Google検索画面から競合を取得します。<a href="/settings/search" className="text-blue-700 underline ml-1">検索結果の取得設定</a></p>
             {/* 納品物の選択 */}
             <div className="flex gap-2">
               {[
