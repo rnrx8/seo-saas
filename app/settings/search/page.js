@@ -1,11 +1,22 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { getSupabase } from '@/lib/supabase'
 import Link from 'next/link'
 import MainLayout from '@/app/_components/v2/MainLayout'
 import { checkBrowserConnection, captureBrowserSerp } from '@/app/_lib/browser-serp'
 
 export default function SearchSettings() {
+  const [profile, setProfile] = useState(null)
+  useEffect(() => {
+    let active = true
+    getSupabase().auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) return
+      const { data } = await getSupabase().from('user_profiles').select('*').eq('id', session.user.id).single()
+      if (active && data) setProfile({ ...data, email: session.user.email })
+    })
+    return () => { active = false }
+  }, [])
   const [query, setQuery] = useState('既婚者クラブ ヒールメイト')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
@@ -18,7 +29,7 @@ export default function SearchSettings() {
     } catch (error) { setMessage(error.message) }
     finally { setBusy(false) }
   }
-  return <MainLayout><div className="max-w-3xl mx-auto p-6 space-y-6">
+  return <MainLayout profile={profile}><div className="max-w-3xl mx-auto p-6 space-y-6">
     <Link href="/dashboard" className="text-blue-700 text-sm">← ダッシュボード</Link>
     <h1 className="text-2xl font-bold">検索結果の取得設定</h1>
     <p className="text-gray-700">記事生成時に、このChromeでGoogle検索を開き、表示された自然検索結果を使います。取得できなかった場合は生成を開始しません。</p>
