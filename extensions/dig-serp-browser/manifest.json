@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "DIG Google検索画面取得",
+  "version": "1.0.0",
+  "description": "DIGで記事生成を押したとき、Google検索画面の自然検索順位を取得します。",
+  "permissions": ["scripting"],
+  "host_permissions": ["https://www.google.co.jp/*", "https://www.google.com/*"],
+  "background": {"service_worker": "background.js", "type": "module"},
+  "content_scripts": [{
+    "matches": ["https://app.deepintentgraph.com/*", "http://localhost:3000/*"],
+    "js": ["bridge.js"],
+    "run_at": "document_start"
+  }]
+}

@@ -6,7 +6,7 @@ export async function GET() {
 }
 
 export async function POST(request) {
-  const { job_id, keyword, word_count_setting } = await request.json()
+  const { job_id, keyword, word_count_setting, browser_serp } = await request.json()
 
   const pipelineUrl = process.env.PIPELINE_API_URL || process.env.NEXT_PUBLIC_PIPELINE_API_URL
   if (!pipelineUrl) {
@@ -16,8 +16,8 @@ export async function POST(request) {
   try {
     const res = await fetch(`${pipelineUrl}/generate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ job_id, keyword, word_count_setting }),
+      headers: { 'Content-Type': 'application/json', ...(request.headers.get('authorization') ? { Authorization: request.headers.get('authorization') } : {}) },
+      body: JSON.stringify({ job_id, keyword, word_count_setting, browser_serp }),
     })
     const data = await res.json().catch(() => ({}))
     return Response.json(data, { status: res.status })

@@ -25,6 +25,7 @@
     "@tailwindcss/postcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
+    "linkedom": "0.18.13",
     "tailwindcss": "^4"
   }
 }
