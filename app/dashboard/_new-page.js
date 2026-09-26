@@ -349,8 +349,10 @@ export default function NewDashboardPage() {
     await fetchJobs()
     setKeyword('')
 
-    // fire-and-forget: Railway が cold start でタイムアウトしても job は DB に残るので polling で追跡できる
-    const callGenerate = () => startBrowserGeneration(job).catch(error => {
+    // 受付後は工程表示へ切り替え、タイムアウト時も保存済み job を追跡する。
+    const callGenerate = () => startBrowserGeneration(job).then(() => {
+      setStatusMessage(null)
+    }).catch(error => {
       setStatusMessage({ type: 'error', text: error.message })
     })
 
