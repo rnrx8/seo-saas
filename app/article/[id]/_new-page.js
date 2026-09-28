@@ -1,5 +1,7 @@
 'use client'
 
+import CompetitorFetchNotice from '@/app/_components/CompetitorFetchNotice'
+
 import { use, useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
@@ -929,13 +931,14 @@ function QueryAttrsCard({ content, wordCountSetting }) {
   )
 }
 
-function HeadingsList({ headings, fetchStatus }) {
+function HeadingsList({ headings, fetchStatus, fetchInfo }) {
   const [open, setOpen] = useState(false)
-  if (fetchStatus === 'failed') return <p className="text-gray-400 text-xs mt-2">見出しを取得できませんでした</p>
-  if (!headings || headings.length === 0) return null
+  if (fetchStatus === 'failed') return <CompetitorFetchNotice details={{ ...fetchInfo, fetch_status: fetchStatus }} />
+  if (!headings || headings.length === 0) return <CompetitorFetchNotice details={fetchInfo} />
 
   return (
     <div className="mt-2">
+      <CompetitorFetchNotice details={fetchInfo} />
       <button
         onClick={() => setOpen(o => !o)}
         className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
@@ -1001,7 +1004,7 @@ function SerpView({ content, queryAttrs, wordCountSetting }) {
                   {item.title ?? '（タイトルなし）'}
                 </a>
                 {item.snippet && <p className="text-gray-600 text-sm mt-1 leading-relaxed">{item.snippet}</p>}
-                {heading && <HeadingsList headings={heading.headings} fetchStatus={heading.fetch_status} />}
+                {heading && <HeadingsList headings={heading.headings} fetchStatus={heading.fetch_status} fetchInfo={heading} />}
               </div>
               <div className="flex flex-col items-end gap-1 shrink-0">
                 <span className="text-xs text-gray-400">#{item.position ?? i + 1}</span>

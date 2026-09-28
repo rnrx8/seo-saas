@@ -1,5 +1,7 @@
 'use client'
 
+import CompetitorFetchNotice from '@/app/_components/CompetitorFetchNotice'
+
 export const dynamic = 'force-dynamic'
 
 import { use, useState, useEffect, useMemo } from 'react'
@@ -447,18 +449,19 @@ function PaaLsiView({ content }) {
   )
 }
 
-function HeadingsList({ headings, fetchStatus }) {
+function HeadingsList({ headings, fetchStatus, fetchInfo }) {
   const [open, setOpen] = useState(false)
 
   if (fetchStatus === 'failed') {
-    return <p className="text-gray-400 text-xs mt-2">見出しを取得できませんでした</p>
+    return <CompetitorFetchNotice details={{ ...fetchInfo, fetch_status: fetchStatus }} />
   }
   if (!headings || headings.length === 0) {
-    return null
+    return <CompetitorFetchNotice details={fetchInfo} />
   }
 
   return (
     <div className="mt-2">
+      <CompetitorFetchNotice details={fetchInfo} />
       <button
         onClick={() => setOpen(o => !o)}
         className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
@@ -620,7 +623,7 @@ function SerpView({ content, queryAttrs, wordCountSetting }) {
                 {heading && (
                   <HeadingsList
                     headings={heading.headings}
-                    fetchStatus={heading.fetch_status}
+                    fetchStatus={heading.fetch_status} fetchInfo={heading}
                   />
                 )}
               </div>
