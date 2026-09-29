@@ -5,16 +5,9 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createBrowserJob, startBrowserGeneration } from '@/app/_lib/browser-serp'
 import { getSupabase } from '@/lib/supabase'
+import { PIPELINE_STEPS as STEPS } from '@/lib/pipeline-progress.mjs'
 import MainLayout from '@/app/_components/v2/MainLayout'
 
-const STEPS = [
-  { key: 'serp',          label: 'SERP取得' },
-  { key: 'search_intent', label: '検索意図' },
-  { key: 'fact_sheet',    label: 'ファクトシート' },
-  { key: 'outline',       label: '構成案' },
-  { key: 'article',       label: '記事執筆' },
-  { key: 'review',        label: 'レビュー' },
-]
 
 function calcSimilarity(kw1, kw2) {
   const t1 = kw1.toLowerCase().split(/\s+/).filter(Boolean)

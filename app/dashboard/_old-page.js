@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
+import { PIPELINE_STEPS as STEPS } from '@/lib/pipeline-progress.mjs'
 import MainLayoutDark from '@/app/_components/v2/MainLayoutDark'
 
 function calcSimilarity(kw1, kw2) {
@@ -296,14 +297,6 @@ export default function DashboardPage() {
 
   if (!authChecked) return null
 
-  const STEPS = [
-    { key: 'serp',          label: '競合・SERP情報の取得' },
-    { key: 'search_intent', label: '検索意図の分析' },
-    { key: 'fact_sheet',    label: 'ファクトシートの作成' },
-    { key: 'outline',       label: '記事構成案の作成' },
-    { key: 'article',       label: '記事本文の執筆' },
-    { key: 'review',        label: '最終確認・レビュー' },
-  ]
   const currentStepIndex = STEPS.findIndex(s => s.key === currentStep)
 
   const isPro = profile?.plan === 'pro'
