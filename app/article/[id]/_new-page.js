@@ -5,7 +5,9 @@ import CompetitorFetchNotice from '@/app/_components/CompetitorFetchNotice'
 import { use, useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
+import { MD_COMPONENTS } from '@/app/_components/ArticleMarkdownComponents'
 import remarkGfm from 'remark-gfm'
+import { remarkBreakTags } from '@/lib/remark-break-tags.mjs'
 import { marked } from 'marked'
 import { getSupabase } from '@/lib/supabase'
 import MainLayout from '@/app/_components/v2/MainLayout'
@@ -43,22 +45,6 @@ function stripInternalPreamble(text) {
   return text
 }
 
-const MD_COMPONENTS = {
-  h1:     ({ children }) => <h1 className="text-2xl font-bold mt-6 mb-3">{children}</h1>,
-  h2:     ({ children }) => <h2 className="text-xl font-bold mt-5 mb-2 border-b pb-1">{children}</h2>,
-  h3:     ({ children }) => <h3 className="text-lg font-semibold mt-4 mb-2">{children}</h3>,
-  h4:     ({ children }) => <h4 className="text-base font-semibold mt-3 mb-1">{children}</h4>,
-  p:      ({ children }) => <p className="mb-3 leading-relaxed">{children}</p>,
-  ul:     ({ children }) => <ul className="list-disc list-inside mb-3 space-y-1">{children}</ul>,
-  ol:     ({ children }) => <ol className="list-decimal list-inside mb-3 space-y-1">{children}</ol>,
-  li:     ({ children }) => <li className="ml-4">{children}</li>,
-  table:  ({ children }) => <div className="max-w-full overflow-x-auto mb-4"><table className="w-full border-collapse">{children}</table></div>,
-  th:     ({ children }) => <th className="border border-gray-300 bg-gray-100 px-3 py-2 text-left text-sm font-semibold">{children}</th>,
-  td:     ({ children }) => <td className="border border-gray-300 px-3 py-2 text-sm">{children}</td>,
-  strong: ({ children }) => <strong className="font-bold">{children}</strong>,
-  pre:    ({ children }) => <pre className="max-w-full overflow-x-auto mb-4">{children}</pre>,
-  code:   ({ children }) => <code className="bg-gray-100 px-1 rounded text-sm">{children}</code>,
-}
 
 const TABS = [
   { key: 'article',       label: '記事' },
@@ -236,7 +222,7 @@ export default function NewArticlePage({ params }) {
                     {titlePatterns && (
                       <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4">
                         <p className="text-xs font-semibold text-gray-500 mb-2">タイトル案（構成案より）</p>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{titlePatterns}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreakTags]} components={MD_COMPONENTS}>{titlePatterns}</ReactMarkdown>
                       </div>
                     )}
                     <ArticleView
@@ -252,7 +238,7 @@ export default function NewArticlePage({ params }) {
                 )}
                 {activeTab === 'search_intent' && (
                   <article className="max-w-none prose">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreakTags]} components={MD_COMPONENTS}>
                       {artifacts['search_intent'] ?? '（データなし）'}
                     </ReactMarkdown>
                   </article>
@@ -262,11 +248,11 @@ export default function NewArticlePage({ params }) {
                     {summarySection && (
                       <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-6">
                         <p className="text-xs font-semibold text-blue-700 mb-3">構成サマリー</p>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{summarySection}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreakTags]} components={MD_COMPONENTS}>{summarySection}</ReactMarkdown>
                       </div>
                     )}
                     <article>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreakTags]} components={MD_COMPONENTS}>
                         {mainOutline || artifacts['outline'] || '（データなし）'}
                       </ReactMarkdown>
                     </article>
@@ -274,7 +260,7 @@ export default function NewArticlePage({ params }) {
                 )}
                 {activeTab === 'fact_sheet' && (
                   <article className="max-w-none">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreakTags]} components={MD_COMPONENTS}>
                       {artifacts['fact_sheet'] ?? 'ファクトシートがありません'}
                     </ReactMarkdown>
                   </article>
@@ -557,7 +543,7 @@ function ArticleView({ markdown, onOpenPanel, onUpdateArticle, wpConfigured, job
       )}
       {!proofreading && view === 'preview' && (
         <article className="max-w-none">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{markdown}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreakTags]} components={MD_COMPONENTS}>{markdown}</ReactMarkdown>
         </article>
       )}
       {!proofreading && view === 'markdown' && (
