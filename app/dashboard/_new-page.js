@@ -1,5 +1,7 @@
 'use client'
 
+import { withSavedArticles } from '@/lib/saved-articles.mjs'
+
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -18,7 +20,7 @@ function calcSimilarity(kw1, kw2) {
   return matches / Math.max(t1.length, t2.length)
 }
 
-function StatusBadge({ status }) {
+function StatusBadge({ status, hasSavedArticle = false }) {
   const map = {
     queued:      { bg: '#fef9c3', color: '#854d0e', label: '待機中' },
     running:     { bg: '#dbeafe', color: '#1e40af', label: '生成中' },
@@ -27,7 +29,9 @@ function StatusBadge({ status }) {
     bug_fixing:  { bg: '#fde68a', color: '#92400e', label: '🔧 バグ修正中' },
     cancelled:   { bg: '#f3f4f6', color: '#6b7280', label: '停止済み' },
   }
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#6b7280', label: status }
+  const s = status === 'failed' && hasSavedArticle
+    ? { bg: '#fef9c3', color: '#854d0e', label: '本文保存済み・確認未完了' }
+    : map[status] ?? { bg: '#f3f4f6', color: '#6b7280', label: status }
   return (
     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: s.bg, color: s.color }}>
       {s.label}
@@ -178,7 +182,7 @@ export default function NewDashboardPage() {
       .from('jobs')
       .select('id, main_keyword, status, created_at, current_step, category')
       .order('created_at', { ascending: false })
-    if (!error && data) setJobs(data)
+    if (!error && data) setJobs(await withSavedArticles(getSupabase(), data))
   }, [])
 
   function resolveJobParams(kw) {
@@ -1000,10 +1004,15 @@ export default function NewDashboardPage() {
                       <div className="text-sm font-medium text-gray-600">{job.main_keyword}</div>
                       {job.status === 'running' && job.current_step && <StepProgress currentStep={job.current_step} />}
                     </td>
-                    <td className="px-4 py-4"><StatusBadge status={job.status} /></td>
+                    <td className="px-4 py-4"><StatusBadge status={job.status} hasSavedArticle={job.hasSavedArticle} /></td>
                     <td className="px-4 py-4 text-xs text-gray-400">{formatDate(job.created_at)}</td>
                     <td className="px-4 py-4 text-xs text-gray-400">{job.category ?? '—'}</td>
                     <td className="px-6 py-4 text-right">
+                      {job.hasSavedArticle && (
+                        <Link href={`/article/${job.id}`} className="block text-xs font-medium text-blue-600 hover:text-blue-700 mb-2">
+                          保存済み記事を見る（確認未完了） →
+                        </Link>
+                      )}
                       {job.status === 'done' ? (
                         <Link href={`/article/${job.id}`} className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">
                           記事を見る →

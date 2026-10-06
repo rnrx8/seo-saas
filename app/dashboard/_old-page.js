@@ -1,5 +1,7 @@
 'use client'
 
+import { withSavedArticles } from '@/lib/saved-articles.mjs'
+
 import { createBrowserJob, startBrowserGeneration } from '@/app/_lib/browser-serp'
 
 export const dynamic = 'force-dynamic'
@@ -85,7 +87,7 @@ export default function DashboardPage() {
       .from('jobs')
       .select('*')
       .order('created_at', { ascending: false })
-    if (!error && data) setJobs(data)
+    if (!error && data) setJobs(await withSavedArticles(getSupabase(), data))
   }, [])
 
   useEffect(() => {
@@ -611,19 +613,19 @@ export default function DashboardPage() {
                     <td className="px-6 py-4 font-medium text-gray-800">{job.main_keyword}</td>
                     <td className="px-6 py-4">
                       <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${statusBadge(job.status)}`}>
-                        {job.status}
+                        {job.hasSavedArticle ? '本文保存済み・確認未完了' : job.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-gray-500">
                       {new Date(job.created_at).toLocaleString('ja-JP')}
                     </td>
                     <td className="px-6 py-4">
-                      {job.status === 'done' && (
+                      {(job.status === 'done' || job.hasSavedArticle) && (
                         <button
                           onClick={() => router.push(`/article/${job.id}`)}
                           className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
                         >
-                          表示
+                          {job.status === 'done' ? '表示' : '保存済み記事を見る（確認未完了）'}
                         </button>
                       )}
                     </td>
