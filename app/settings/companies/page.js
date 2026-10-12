@@ -1,5 +1,7 @@
 'use client'
 
+import { useCreditSync } from '@/app/_lib/use-credit-sync'
+
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -33,6 +35,7 @@ function StarDisplay({ level }) {
 export default function CompaniesPage() {
   const router = useRouter()
   const [profile, setProfile] = useState(null)
+  useCreditSync(profile, setProfile)
   const [theme, setTheme] = useState(null)
   const [companies, setCompanies] = useState([])
   const [presets, setPresets] = useState([])

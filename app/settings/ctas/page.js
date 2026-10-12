@@ -1,5 +1,7 @@
 'use client'
 
+import { useCreditSync } from '@/app/_lib/use-credit-sync'
+
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -13,6 +15,7 @@ const EMPTY_FORM = { name: '', category: '', body: '', button_text: '', url: '',
 export default function CtasPage() {
   const router = useRouter()
   const [profile, setProfile] = useState(null)
+  useCreditSync(profile, setProfile)
   const [theme, setTheme] = useState(null)
   const [ctas, setCtas] = useState([])
   const [presets, setPresets] = useState([])

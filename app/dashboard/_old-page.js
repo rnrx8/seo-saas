@@ -1,5 +1,7 @@
 'use client'
 
+import { useCreditSync } from '@/app/_lib/use-credit-sync'
+
 import { withSavedArticles } from '@/lib/saved-articles.mjs'
 
 import { createBrowserJob, startBrowserGeneration } from '@/app/_lib/browser-serp'
@@ -53,6 +55,7 @@ export default function DashboardPage() {
   const [bulkKeywords, setBulkKeywords] = useState('')
   const [jobs, setJobs] = useState([])
   const [profile, setProfile] = useState(null)
+  useCreditSync(profile, setProfile)
   const [theme, setTheme] = useState(null)
   const [generating, setGenerating] = useState(false)
   const [currentStep, setCurrentStep] = useState(null)
@@ -260,13 +263,7 @@ export default function DashboardPage() {
         setCurrentStep(null)
         fetchJobs()
 
-        if (profile?.plan !== 'pro') {
-          await getSupabase()
-            .from('user_profiles')
-            .update({ credits_remaining: profile.credits_remaining - creditCost })
-            .eq('id', profile.id)
-          await fetchProfile(profile.id)
-        }
+        if (profile?.id) await fetchProfile(profile.id)
         setStatusMessage({ type: 'success', text: '生成完了！' })
       } else if (data?.status === 'failed') {
         clearInterval(id)

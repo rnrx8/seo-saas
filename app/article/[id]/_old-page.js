@@ -1,5 +1,7 @@
 'use client'
 
+import { useCreditSync } from '@/app/_lib/use-credit-sync'
+
 import CompetitorFetchNotice from '@/app/_components/CompetitorFetchNotice'
 
 export const dynamic = 'force-dynamic'
@@ -82,6 +84,7 @@ export default function ArticlePage({ params }) {
   const [wpConfigured, setWpConfigured] = useState(false)
   const [job, setJob] = useState(null)
   const [profile, setProfile] = useState(null)
+  useCreditSync(profile, setProfile)
   const [theme, setTheme] = useState(null)
 
   useEffect(() => {

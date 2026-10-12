@@ -1,5 +1,7 @@
 'use client'
 
+import { useCreditSync } from '@/app/_lib/use-credit-sync'
+
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -47,6 +49,7 @@ const PLAN_LABELS = {
 export default function SettingsPage() {
   const router = useRouter()
   const [profile, setProfile] = useState(null)
+  useCreditSync(profile, setProfile)
   const [theme, setTheme] = useState(null)
   const [loading, setLoading] = useState(true)
   const [deleteStep, setDeleteStep] = useState(null) // null | 'confirm' | 'password'

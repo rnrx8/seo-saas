@@ -1,5 +1,7 @@
 'use client'
 
+import { useCreditSync } from '@/app/_lib/use-credit-sync'
+
 import { useState, useEffect } from 'react'
 import { getSupabase } from '@/lib/supabase'
 import Link from 'next/link'
@@ -8,6 +10,7 @@ import { checkBrowserConnection, captureBrowserSerp } from '@/app/_lib/browser-s
 
 export default function SearchSettings() {
   const [profile, setProfile] = useState(null)
+  useCreditSync(profile, setProfile)
   useEffect(() => {
     let active = true
     getSupabase().auth.getSession().then(async ({ data: { session } }) => {

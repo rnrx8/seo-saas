@@ -1,5 +1,7 @@
 'use client'
 
+import { useCreditSync } from '@/app/_lib/use-credit-sync'
+
 import { withSavedArticles } from '@/lib/saved-articles.mjs'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -107,6 +109,7 @@ export default function NewDashboardPage() {
   // --- App state ---
   const [jobs, setJobs] = useState([])
   const [profile, setProfile] = useState(null)
+  useCreditSync(profile, setProfile)
   const [theme, setTheme] = useState(null)
   const [generating, setGenerating] = useState(false)
   const [currentStep, setCurrentStep] = useState(null)
@@ -207,7 +210,7 @@ export default function NewDashboardPage() {
       service_id: selectedServiceId ?? null,
       cta_id: selectedCtaIds[0] ?? null,
       citation_style: citationStyle || 'none',
-      high_accuracy_mode: highAccuracyMode,
+      high_accuracy_mode: deliveryType === 'full' && highAccuracyMode,
       preset_id: selectedPresetId ?? null,
     }
   }
@@ -316,13 +319,14 @@ export default function NewDashboardPage() {
     e.preventDefault()
     if (!keyword.trim() || generating) return
 
-    const creditCost = ((deliveryType === 'outline_only' || deliveryType === 'research_only') ? 0.5 : 1) + (highAccuracyMode ? 0.2 : 0)
+    const highAccuracyEnabled = deliveryType === 'full' && highAccuracyMode
+    const creditCost = ((deliveryType === 'outline_only' || deliveryType === 'research_only') ? 0.5 : 1) + (highAccuracyEnabled ? 0.2 : 0)
     if (profile?.plan !== 'pro' && profile?.credits_remaining < creditCost) {
       setStatusMessage({ type: 'error', text: 'クレジットが不足しています。設定ページからクレジットを追加してください。' })
       return
     }
 
-    if (highAccuracyMode) {
+    if (highAccuracyEnabled) {
       const ok = window.confirm(
         `【情報精度99.9%モード 有効】\n\n記事内の全事実情報をWebで再検索・再確認し、未確認情報を自動修正します。\n消費クレジット：${creditCost.toFixed(1)}（通常より +0.2）\n\n実行しますか？`
       )
@@ -380,10 +384,7 @@ export default function NewDashboardPage() {
         queuedSince = Date.now()
       } else if (data?.status === 'done') {
         clearInterval(id); setPollingId(null); setPollingJobId(null); setGenerating(false); setCurrentStep(null); fetchJobs()
-        if (profile?.plan !== 'pro') {
-          await getSupabase().from('user_profiles').update({ credits_remaining: profile.credits_remaining - creditCost }).eq('id', profile.id)
-          await fetchProfile(profile.id)
-        }
+        if (profile?.id) await fetchProfile(profile.id, profile.email)
         setStatusMessage({ type: 'success', text: '生成完了！' })
       } else if (data?.status === 'failed') {
         clearInterval(id); setPollingId(null); setPollingJobId(null); setGenerating(false); setCurrentStep(null); fetchJobs()
@@ -414,30 +415,24 @@ export default function NewDashboardPage() {
   }
 
   async function handleStop() {
+    if (!pollingJobId) return
+    const { data: stopped, error } = await getSupabase().from('jobs')
+      .update({ status: 'cancelled' }).eq('id', pollingJobId)
+      .in('status', ['queued', 'running']).select('id, current_step').maybeSingle()
+    if (error) {
+      setStatusMessage({ type: 'error', text: '停止できませんでした。もう一度お試しください。' })
+      return
+    }
     if (pollingId) clearInterval(pollingId)
     setPollingId(null)
-
-    const partialCost =
-      !currentStep ? 0 :
-      ['serp', 'search_intent'].includes(currentStep) ? 0.2 :
-      ['fact_sheet', 'outline'].includes(currentStep) ? 0.5 :
-      1.0
-
-    if (pollingJobId) {
-      await getSupabase().from('jobs').update({ status: 'cancelled' }).eq('id', pollingJobId)
-      setPollingJobId(null)
-    }
-
-    if (profile?.plan !== 'pro' && partialCost > 0) {
-      const newCredits = Math.max(0, (profile?.credits_remaining ?? 0) - partialCost)
-      await getSupabase().from('user_profiles').update({ credits_remaining: newCredits }).eq('id', profile.id)
-      fetchProfile(profile.id)
-    }
-
+    setPollingJobId(null)
     setGenerating(false)
     setCurrentStep(null)
-    fetchJobs()
-    setStatusMessage({ type: 'info', text: `生成を停止しました（-${partialCost}クレジット）` })
+    await fetchJobs()
+    if (profile?.id) await fetchProfile(profile.id, profile.email)
+    setStatusMessage({ type: 'info', text: stopped
+      ? '生成を停止しました。消費クレジットは進行状況に応じて反映されます。'
+      : 'すでに処理が終了しています。最新の状態を表示しました。' })
   }
 
   if (!authChecked) return null

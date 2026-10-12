@@ -1,5 +1,7 @@
 'use client'
 
+import { useCreditSync } from '@/app/_lib/use-credit-sync'
+
 import CompetitorFetchNotice from '@/app/_components/CompetitorFetchNotice'
 
 import { use, useState, useEffect, useMemo } from 'react'
@@ -86,6 +88,7 @@ export default function NewArticlePage({ params }) {
   const [showPanel, setShowPanel] = useState(false)
   const [articleInfoOpen, setArticleInfoOpen] = useState(false)
   const [profile, setProfile] = useState(null)
+  useCreditSync(profile, setProfile)
   const [theme, setTheme] = useState(null)
   const [wpConfigured, setWpConfigured] = useState(false)
 

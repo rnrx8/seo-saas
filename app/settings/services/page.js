@@ -1,5 +1,7 @@
 'use client'
 
+import { useCreditSync } from '@/app/_lib/use-credit-sync'
+
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -24,6 +26,7 @@ const ACCEPTED_TYPES = '.pdf,.xlsx,.xls,.csv,.docx,.txt'
 export default function ServicesPage() {
   const router = useRouter()
   const [profile, setProfile] = useState(null)
+  useCreditSync(profile, setProfile)
   const [theme, setTheme] = useState(null)
   const [services, setServices] = useState([])
   const [presets, setPresets] = useState([])
