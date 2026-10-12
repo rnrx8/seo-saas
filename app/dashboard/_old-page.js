@@ -1,5 +1,7 @@
 'use client'
 
+import QualityWarnings from '@/app/_components/QualityWarnings'
+
 import { useCreditSync } from '@/app/_lib/use-credit-sync'
 
 import { withSavedArticles } from '@/lib/saved-articles.mjs'
@@ -310,6 +312,7 @@ export default function DashboardPage() {
 
   return (
     <MainLayoutDark profile={profile} theme={theme}>
+      <QualityWarnings />
       <main className="max-w-4xl mx-auto px-3 py-5 sm:px-8 sm:py-8 flex flex-col gap-8">
         {/* Generate form */}
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

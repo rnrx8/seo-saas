@@ -1,5 +1,7 @@
 'use client'
 
+import QualityWarnings from '@/app/_components/QualityWarnings'
+
 import { useCreditSync } from '@/app/_lib/use-credit-sync'
 
 import CompetitorFetchNotice from '@/app/_components/CompetitorFetchNotice'
@@ -179,6 +181,7 @@ export default function NewArticlePage({ params }) {
 
   return (
     <MainLayout profile={profile} theme={theme}>
+      <QualityWarnings jobId={id} />
       <div className="flex h-full min-w-0 flex-col lg:flex-row">
         {/* Main content area */}
         <div className="flex-1 min-h-0 min-w-0 overflow-y-auto">

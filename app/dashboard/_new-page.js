@@ -1,5 +1,7 @@
 'use client'
 
+import QualityWarnings from '@/app/_components/QualityWarnings'
+
 import { useCreditSync } from '@/app/_lib/use-credit-sync'
 
 import { withSavedArticles } from '@/lib/saved-articles.mjs'
@@ -452,6 +454,7 @@ export default function NewDashboardPage() {
 
   return (
     <MainLayout profile={profile} theme={theme}>
+      <QualityWarnings />
       <div className="px-3 py-5 sm:px-8 sm:py-8">
         {/* Generate form card */}
         <div className="glass-panel rounded-2xl shadow-sm p-6 mb-8">

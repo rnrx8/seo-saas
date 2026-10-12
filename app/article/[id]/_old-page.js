@@ -1,5 +1,7 @@
 'use client'
 
+import QualityWarnings from '@/app/_components/QualityWarnings'
+
 import { useCreditSync } from '@/app/_lib/use-credit-sync'
 
 import CompetitorFetchNotice from '@/app/_components/CompetitorFetchNotice'
@@ -151,6 +153,7 @@ export default function ArticlePage({ params }) {
 
   return (
     <MainLayoutDark profile={profile} theme={theme}>
+      <QualityWarnings jobId={id} />
       <main className="max-w-4xl mx-auto px-0 py-3 lg:px-8 lg:py-8">
         {error ? (
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-6 text-sm">
