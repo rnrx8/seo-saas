@@ -10,7 +10,7 @@ async function capture(query) {
   try {
     const url = new URL('https://www.google.co.jp/search')
     for (const [k, v] of Object.entries({ q: query, hl: 'ja', gl: 'jp', pws: '0' })) url.searchParams.set(k, v)
-    tab = await chrome.tabs.create({ url: url.href, active: true })
+    tab = await chrome.tabs.create({ url: url.href, active: false })
     let previous = '', stable = 0
     for (let attempt = 0; attempt < 30; attempt++) {
       await wait(1000)
@@ -39,7 +39,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   let origin
   try { origin = new URL(sender.url).origin } catch { return false }
   if (!['https://app.deepintentgraph.com', 'http://localhost:3000'].includes(origin) || sender.frameId !== 0) return false
-  if (message.action === 'ping') { sendResponse({ version: '1.0.0' }); return false }
+  if (message.action === 'ping') { sendResponse({ version: '1.1.0', capabilities: { backgroundCapture: true } }); return false }
   if (message.action !== 'capture') return false
   capture(message.query).then(sendResponse, error => sendResponse({ error: error.message || '検索画面の取得に失敗しました。' }))
   return true

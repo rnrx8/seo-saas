@@ -9,7 +9,7 @@ import { withSavedArticles } from '@/lib/saved-articles.mjs'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createBrowserJob, startBrowserGeneration } from '@/app/_lib/browser-serp'
+import { createBrowserJob, startBrowserGeneration, resumeGeneration } from '@/app/_lib/browser-serp'
 import { getSupabase } from '@/lib/supabase'
 import { PIPELINE_STEPS as STEPS } from '@/lib/pipeline-progress.mjs'
 import MainLayout from '@/app/_components/v2/MainLayout'
@@ -401,9 +401,9 @@ export default function NewDashboardPage() {
   }
 
   async function handleRetry(job) {
-    setStatusMessage({ type: 'info', text: 'Google検索画面から競合情報を取得中です…' })
+    setStatusMessage({ type: 'info', text: '保存済みの途中成果から再開しています…' })
     try {
-      await startBrowserGeneration(job, { refresh: true })
+      await resumeGeneration(job)
       await fetchJobs()
       setStatusMessage({ type: 'info', text: `「${job.main_keyword}」を再実行しました` })
     } catch (error) { setStatusMessage({ type: 'error', text: error.message }); return }

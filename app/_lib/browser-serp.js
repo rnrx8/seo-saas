@@ -25,7 +25,10 @@ function browserRequest(action, query, timeoutMs) {
 export const checkBrowserConnection = () => browserRequest('ping', null, 2000)
 
 export async function captureBrowserSerp(query) {
-  await checkBrowserConnection()
+  const connection = await checkBrowserConnection()
+  if (!connection.capabilities?.backgroundCapture) {
+    throw new Error('検索結果の取得機能を更新してください。Chromeの拡張機能画面で「DIG Google検索画面取得」を再読み込みし、DIGのページも更新してください。')
+  }
   const { snapshot } = await browserRequest('capture', query, 45000)
   if (snapshot?.query !== query || !Array.isArray(snapshot.organic_results) || snapshot.organic_results.length < 3) {
     throw new Error('検索画面の結果を確認できませんでした。記事は作成していません。')
@@ -65,5 +68,20 @@ export async function startBrowserGeneration(job, { refresh = false } = {}) {
     }
     throw error
   }
+  return body
+}
+
+// Retries use the authenticated server resume endpoint and saved evidence.
+// They must not launch another search or replay completed paid stages.
+export async function resumeGeneration(job) {
+  const { data: { session } } = await getSupabase().auth.getSession()
+  if (!session) throw new Error('ログインし直してください。')
+  const response = await fetch('/api/resume', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify({ job_id: job.id }),
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : body.error || '再開できませんでした。')
   return body
 }
